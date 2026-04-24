@@ -1,0 +1,52 @@
+# chesspoint72
+
+A lightweight chess renderer built with Pygame, with optional UCI engine play.
+
+## Features
+
+- 2D chessboard renderer in Pygame
+- Click-to-move interaction with legal move validation
+- UCI engine support (for example Stockfish)
+- CLI options for engine side, think time, board size, and starting FEN
+
+## Install
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .[dev]
+```
+
+## Run
+
+Human vs human:
+
+```bash
+python -m chesspoint72.main
+```
+
+Human vs UCI engine (engine plays black):
+
+```bash
+python -m chesspoint72.main --engine /opt/homebrew/bin/stockfish --engine-color black --movetime 0.2
+```
+
+Engine from custom FEN:
+
+```bash
+python -m chesspoint72.main --engine /opt/homebrew/bin/stockfish --fen "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
+```
+
+## Controls
+
+- Left click a piece to select it.
+- Left click a destination square to move.
+- Click selected piece again to clear selection.
+- Pawn promotions are auto-queen for mouse-only flow.
+
+## Tests
+
+```bash
+pytest
+```
+
