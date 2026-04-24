@@ -34,9 +34,9 @@ class GameController:
 
     def run(self) -> None:
         pygame.init()
-        self.renderer = BoardRenderer(square_size=self.config.square_size)
-        screen = pygame.display.set_mode((self.renderer.board_px, self.renderer.board_px))
+        screen = pygame.display.set_mode((self.config.square_size*8, self.config.square_size*8))
         pygame.display.set_caption("Chesspoint72")
+        self.renderer = BoardRenderer(square_size=self.config.square_size)
 
         if self.config.engine_path:
             self.engine = UciEngineClient(
