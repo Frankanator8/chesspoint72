@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "chesspoint72-orchestrator": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["-m", "mcp_orchestrator.mcp_server"]
+    }
+  }
+}
