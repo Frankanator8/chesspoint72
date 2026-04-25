@@ -24,8 +24,8 @@ dev = [
 chesspoint72 = "chesspoint72.main:main"
 chesspoint72-engine = "chesspoint72.engine.factory:main"
 chesspoint72-battle = "chesspoint72.benchmark.battle_royale:main"
+chesspoint72-frank-v3 = "chesspoint72.aiengines.frank.v3.engine:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-

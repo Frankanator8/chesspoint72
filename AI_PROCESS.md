@@ -51,3 +51,25 @@
 
 **Token efficiency (estimated):** ~1.5k tokens total (audit + patch + targeted verification) to generalize factory wiring across two additional seams with minimal code churn and no search-behavior drift under defaults.
 
+## 2026-04-25 - Frank v3 engine profile assembly
+
+**Prompt shape:** inspect existing engine modules (HCE, NNUE, ordering, pruning), select strongest practical combination, and implement it self-contained under `src/chesspoint72/aiengines/frank/v3`.
+
+**Approach:**
+- Added `frank/v3` package with its own UCI entrypoint and builder (`engine.py`, `__main__.py`, `__init__.py`).
+- Implemented `FrankV3MoveOrderingPolicy` in `ordering.py` to replace factory stub ordering with TT-first and tactical capture prioritization.
+- Built robust evaluator chain in Frank v3: prefer NNUE when loadable, otherwise fallback to HCE (`classic,advanced` default).
+- Added runnable and documentation artifacts: `src/chesspoint72/aiengines/frank/v3/README.md` and updated `src/chesspoint72/aiengines/frank/README.md`.
+- Added focused regression tests in `tests/test_frank_v3.py`.
+
+**Token efficiency (estimated):** ~7k total tokens to audit existing architecture and ship a runnable profile with tests in one pass, avoiding broad factory refactors and preserving current defaults.
+
+## 2026-04-25 - Frank v3 Python-only launcher follow-up
+
+**Prompt shape:** after user deleted `.sh` wrappers, migrate Frank v3 usage/docs to Python-only entrypoints.
+
+**Approach:**
+- Removed remaining `.sh` launcher references from `src/chesspoint72/aiengines/frank/v3/README.md`.
+- Standardized guidance on `python3 -m chesspoint72.aiengines.frank.v3` and installed console scripts (`chesspoint72-frank-v3`, `chesspoint72-engine`) for tooling that needs executable paths.
+
+**Token efficiency (estimated):** ~1k tokens for targeted grep + doc patch; no engine-logic churn.
