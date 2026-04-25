@@ -1,8 +1,13 @@
 from __future__ import annotations
-import argparse, inspect, sys, pathlib
+import argparse
+import inspect
+import pathlib
+import sys
 import chess
 import chess.engine
 from chesspoint72.app.controller import GameConfig, GameController
+
+_ENGINE_BOOT_TIMEOUT_S = 60.0
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Chesspoint72: Pygame UCI chess renderer")
@@ -37,10 +42,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Error: 'run.sh' not found in {engine_cwd}", file=sys.stderr)
             return 1
 
-        print(f"Booting {engine_cwd.name} (giving PyTorch up to 60s)...")
+        print(f"Booting {engine_cwd.name} (giving PyTorch up to {_ENGINE_BOOT_TIMEOUT_S:.0f}s)...")
         try:
-            # Exact loading logic from engine_match.py
-            engine = chess.engine.SimpleEngine.popen_uci(["bash", "run.sh"], cwd=engine_cwd, timeout=60.0)
+            engine = chess.engine.SimpleEngine.popen_uci(["bash", "run.sh"], cwd=engine_cwd, timeout=_ENGINE_BOOT_TIMEOUT_S)
         except Exception as e:
             print(f"Failed to boot engine: {e}", file=sys.stderr)
             return 1

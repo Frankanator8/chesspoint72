@@ -1,30 +1,62 @@
 # Paul's Engine Suite
 
 **Models used:** Claude Sonnet 4.6 (initial 4 engines), Claude Opus 4.7 (3 hybrid engines)  
-**Design phase token estimate:** ~18k input / ~6k output (Sonnet phase) + ~30k input / ~12k output (Opus hybrid phase)  
+**NNUE weights:** `real_nnue_epoch_4.pt` (768→64→1, trained by Paul)  
 **All code is self-contained within this folder** (shared infrastructure imports from `chesspoint72.engine.*` but all Paul-specific search logic lives here).
 
 ---
 
-## The 5-Model NNUE Ensemble
+## Running the Tournament (Quick ELO Estimates)
 
-Each `.pt` file is a dictionary with keys `state_dict`, `h1`, `h2`. The loader in `engine/evaluators/nnue/evaluator.py` reads `h1`/`h2` dynamically and falls back to 256x32 for legacy checkpoints.
+From the repo root, with your virtualenv active:
 
-| Key | File | Architecture | Specialty |
-|---|---|---|---|
-| `nnue_baseline` | `nnue_weights.pt` | 256×32 | Generalist — full dataset mix |
-| `nnue_tank` | `nnue_tank_final.pt` | 512×64 | Positional depth |
-| `nnue_tactician` | `nnue_tactician_final.pt` | 256×32 | Tactical sharpness |
-| `nnue_speedster` | `nnue_speedster_final.pt` | 64×16 | NPS / blitz speed |
-| `nnue_finisher` | `nnue_finisher_final.pt` | 256×32 | Endgame precision |
+```bash
+# Fast smoke test — 2 games per pairing, 0.2s per move (~3-5 min)
+python -m chesspoint72.benchmark.tournament_runner \
+  --engines paul_bullet,paul_cannon,paul_grinder,paul_chameleon,paul_sentry,paul_classic \
+  --games 2 --time 0.2
 
-### Training data filters (from Colab session)
+# Longer run for more accurate ELO — 10 games per pairing, 1s per move
+python -m chesspoint72.benchmark.tournament_runner \
+  --engines paul_bullet,paul_cannon,paul_grinder,paul_chameleon,paul_sentry,paul_classic \
+  --games 10 --time 1.0
 
-- **Generalist**: Full Lichess/CCRL game mix, no position filter. Balanced across all phases.
-- **Tank**: Long time-control games (≥15+10) only. Positions filtered to middlegame (move 10–40, material > 60). Forces the network to learn deep positional understanding.
-- **Tactician**: Positions containing tactical motifs — pins, forks, discovered attacks, sacrifices — extracted via Stockfish annotation (eval swing ≥ 150cp in 1 move). Oversampled sharp positions.
-- **Speedster**: Blitz and bullet games (≤3+2). Positions from moves 8–25. Architecture kept intentionally tiny (64×16) so forward pass dominates search time minimally.
-- **Finisher**: Endgame positions only — fewer than 14 total pieces on board, excluding queen endings. Oversampled R+P and K+P structures. Trained with finer centipawn labels from 7-piece Syzygy tablebase probes where available.
+# Save results to JSON
+python -m chesspoint72.benchmark.tournament_runner \
+  --engines paul_bullet,paul_cannon,paul_grinder,paul_chameleon,paul_sentry,paul_classic \
+  --games 10 --time 1.0 --output paul_results.json
+```
+
+**Requirements:** `torch`, `chess` (`pip install torch python-chess`)
+
+Set `KMP_DUPLICATE_LIB_OK=TRUE` if you hit a PyTorch threading error on Mac/Windows:
+```bash
+KMP_DUPLICATE_LIB_OK=TRUE python -m chesspoint72.benchmark.tournament_runner ...
+```
+
+## Running a Single Engine (UCI)
+
+Each engine folder has a `run.sh`. From the repo root:
+
+```bash
+bash src/chesspoint72/aiengines/paul/engine_classic/run.sh
+bash src/chesspoint72/aiengines/paul/engine_v2/run.sh
+# etc.
+```
+
+The engine speaks UCI — you can also plug it into any UCI-compatible GUI (Arena, CuteChess, etc.) using the `run.sh` as the engine executable.
+
+---
+
+## NNUE Weights
+
+All engines use `real_nnue_epoch_4.pt` — Paul's trained weights stored at:
+```
+src/chesspoint72/engine/evaluators/nnue/weights/real_nnue_epoch_4.pt
+```
+
+Architecture: **768 → 64 → 1** (input: 12 piece planes × 64 squares, output: centipawn score).  
+Older checkpoints (`epoch_1`, `epoch_2`) are kept in the same folder as fallbacks.
 
 ---
 

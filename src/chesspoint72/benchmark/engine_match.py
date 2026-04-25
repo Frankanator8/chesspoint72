@@ -1,10 +1,15 @@
 from __future__ import annotations
-import argparse, random, sys, time
+import argparse
+import random
+import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 import chess
 import chess.engine
+
+_ENGINE_BOOT_TIMEOUT_S = 60.0
 
 def _play_game(white: chess.engine.SimpleEngine, black: chess.engine.SimpleEngine, movetime_s: float, move_cap: int = 400, fen: str | None = None) -> str:
     board = chess.Board(fen) if fen else chess.Board()
@@ -43,11 +48,11 @@ def run_match(engine1_dir: str | Path, engine2_dir: str | Path, games: int = 100
     e1_wins = e2_wins = draws = 0
     t0 = time.monotonic()
 
-    print(f"Booting {name1} (giving PyTorch up to 60s)...")
-    eng1 = chess.engine.SimpleEngine.popen_uci(["bash", "run.sh"], cwd=dir1, timeout=60.0)
+    print(f"Booting {name1} (giving PyTorch up to {_ENGINE_BOOT_TIMEOUT_S:.0f}s)...")
+    eng1 = chess.engine.SimpleEngine.popen_uci(["bash", "run.sh"], cwd=dir1, timeout=_ENGINE_BOOT_TIMEOUT_S)
     print(f"Booting {name2}...")
     try:
-        eng2 = chess.engine.SimpleEngine.popen_uci(["bash", "run.sh"], cwd=dir2, timeout=60.0)
+        eng2 = chess.engine.SimpleEngine.popen_uci(["bash", "run.sh"], cwd=dir2, timeout=_ENGINE_BOOT_TIMEOUT_S)
     except Exception:
         eng1.quit()
         raise
@@ -72,8 +77,10 @@ def run_match(engine1_dir: str | Path, engine2_dir: str | Path, games: int = 100
                 print(f"Result: {result_str} [W={e1_wins} D={draws} L={e2_wins}]\n")
     finally:
         for eng in (eng1, eng2):
-            try: eng.close()
-            except Exception: pass
+            try:
+                eng.close()
+            except Exception as exc:
+                print(f"Warning: engine cleanup failed: {exc}", file=sys.stderr)
     return MatchResult(games, e1_wins, draws, e2_wins, round(time.monotonic() - t0, 2))
 
 def main(argv=None):
