@@ -49,7 +49,8 @@ class BuiltinEngineClient:
 
     def request_move_info(self, board: chess.Board) -> MoveInfo:
         """Return the best move plus search metadata (score, depth, PV)."""
-        assert self._controller is not None, "call start() first"
+        if self._controller is None:
+            raise RuntimeError("call start() first")
         self._controller.handle_position_command(f"fen {board.fen()}")
         legal = self._controller.current_board_reference.generate_legal_moves()
         if not legal:

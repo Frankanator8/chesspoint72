@@ -15,8 +15,8 @@ Active variant: **`v1`** (`src/chesspoint72/aiengines/frank/v1/`).
   factory wires in by default — the largest single source of free Elo.
 - **Evaluator**: HCE classic (`material, pst, pawns, king_safety, mobility,
   rooks, bishops`) + `clcm`. NNUE, IDAM, EWPM, SRCM, OTVM, LMDM, LSCM, DESM
-  are deliberately **excluded** — see the rationale in
-  [`/Users/hanyangliu/.claude/plans/in-chesspoint72-we-have-frolicking-beacon.md`](../../../../../.claude/plans/in-chesspoint72-we-have-frolicking-beacon.md).
+  are deliberately **excluded** — they add noise without Elo gain at Frank's
+  current search depth and time budget.
 
 ## Run
 
@@ -28,8 +28,5 @@ Speaks UCI on stdio.
 
 ## Logging convention
 
-Make sure to note down the model used, tokens used, and that everything is
-self-contained within this folder.
-
-- Model: <fill in per session>
-- Tokens used: <fill in per session>
+Log significant changes to `AI_PROCESS.md` at the repo root: note the model
+used, token count, and a one-line summary of what changed and why.

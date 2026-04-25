@@ -69,6 +69,18 @@ def discover_aiengine_uci_entries() -> dict[str, dict[str, Any]]:
             "label": f"Frank {vdir.upper()} (UCI)",
         }
 
+    # Victor engines.
+    for run_sh in _AIENGINES_DIR.glob("victor/**/run.sh"):
+        vdir = run_sh.parent.name  # v1, v2, ... v7
+        if not vdir.startswith("v"):
+            continue
+        engine_id = f"victor-{vdir}"
+        entries[engine_id] = {
+            "type": "uci",
+            "command": ["bash", str(run_sh)],
+            "label": f"Victor {vdir.upper()} (UCI)",
+        }
+
     return dict(sorted(entries.items()))
 
 

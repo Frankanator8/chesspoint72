@@ -40,20 +40,38 @@ def fen_to_tensor(fen: str) -> torch.Tensor:
 
 
 class NnueNetwork(nn.Module):
-    """Fully-connected NNUE: 768 -> h1 -> h2 -> 1."""
+    """Fully-connected NNUE. Supports 2-layer (h2=None) and 3-layer architectures."""
 
-    def __init__(self, h1: int = 256, h2: int = 32) -> None:
+    def __init__(self, h1: int = 256, h2: int | None = 32) -> None:
         super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(768, h1),
-            nn.ReLU(),
-            nn.Linear(h1, h2),
-            nn.ReLU(),
-            nn.Linear(h2, 1),
-        )
+        if h2 is None:
+            self.net = nn.Sequential(
+                nn.Linear(768, h1),
+                nn.ReLU(),
+                nn.Linear(h1, 1),
+            )
+        else:
+            self.net = nn.Sequential(
+                nn.Linear(768, h1),
+                nn.ReLU(),
+                nn.Linear(h1, h2),
+                nn.ReLU(),
+                nn.Linear(h2, 1),
+            )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
+
+
+def _remap_fc_keys(state_dict: dict) -> dict:
+    """Remap fc1/fc2 named keys to Sequential net.0/net.2 keys."""
+    mapping = {
+        "fc1.weight": "net.0.weight",
+        "fc1.bias":   "net.0.bias",
+        "fc2.weight": "net.2.weight",
+        "fc2.bias":   "net.2.bias",
+    }
+    return {mapping.get(k, k): v for k, v in state_dict.items()}
 
 
 _DEFAULT_WEIGHTS_PATH = Path(__file__).resolve().parent / "weights" / "real_nnue_epoch_4.pt"
@@ -62,18 +80,24 @@ _DEFAULT_WEIGHTS_PATH = Path(__file__).resolve().parent / "weights" / "real_nnue
 class NnueEvaluator(Evaluator):
     """Evaluator that runs a trained NNUE on the current position.
 
-    Supports two checkpoint formats:
+    Supports three checkpoint formats:
     - New format: dict with keys ``state_dict``, ``h1``, ``h2``
-    - Legacy format: raw OrderedDict (plain state_dict); assumes 256x32
+    - fc1/fc2 format: flat dict with fc1/fc2 named layers (2-layer network)
+    - Legacy format: raw OrderedDict with net.* keys; assumes 256x32
     """
 
     def __init__(self, weights_path: str | Path = _DEFAULT_WEIGHTS_PATH) -> None:
         self._device = torch.device("cpu")
-        checkpoint = torch.load(str(weights_path), map_location=self._device)
+        checkpoint = torch.load(str(weights_path), map_location=self._device, weights_only=False)
         if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
             h1 = int(checkpoint.get("h1", 256))
             h2 = int(checkpoint.get("h2", 32))
             state_dict = checkpoint["state_dict"]
+        elif isinstance(checkpoint, dict) and "fc1.weight" in checkpoint:
+            # 2-layer fc1/fc2 format: infer h1 from fc1 output dim
+            h1 = checkpoint["fc1.weight"].shape[0]
+            h2 = None
+            state_dict = _remap_fc_keys(checkpoint)
         else:
             h1, h2 = 256, 32
             state_dict = checkpoint
