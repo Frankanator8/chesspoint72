@@ -19,6 +19,7 @@ Run:
 """
 from __future__ import annotations
 
+import os
 import random
 import sys
 from typing import Iterable, TextIO
@@ -54,9 +55,49 @@ class _StubBoard(Board):
         return 0
 
 
+class _PyChessBoardAdapter(Board):
+    """Adapter exposing a python-chess board via the engine's Board interface."""
+
+    def __init__(self, py_board: chess.Board) -> None:
+        super().__init__()
+        self._py_board = py_board
+
+    def set_position_from_fen(self, fen_string: str) -> None:
+        self._py_board.set_fen(fen_string)
+
+    def get_current_fen(self) -> str:
+        return self._py_board.fen()
+
+    def generate_legal_moves(self) -> list[Move]:
+        return []
+    def make_move(self, move: Move) -> None: ...
+    def unmake_move(self) -> None: ...
+    def is_king_in_check(self) -> bool:
+        return self._py_board.is_check()
+    def calculate_zobrist_hash(self) -> int:
+        return 0
+
+
 class _StubEvaluator(Evaluator):
     def evaluate_position(self, board: Board) -> int:
         return 0
+
+
+def build_evaluator(name: str | None = None) -> Evaluator:
+    """Factory: select an Evaluator implementation by name.
+
+    Recognised names: "stub" (default), "nnue". The selected name is also
+    read from the CHESSPOINT72_EVALUATOR env var when `name` is None, so the
+    Battle Royale (SPRT) runner can flip evaluators without rebuilding.
+    """
+    chosen = (name or os.environ.get("CHESSPOINT72_EVALUATOR", "stub")).strip().lower()
+    if chosen == "nnue":
+        from chesspoint72.engine.nnue_evaluator import NnueEvaluator
+        weights = os.environ.get("CHESSPOINT72_NNUE_WEIGHTS")
+        return NnueEvaluator(weights) if weights else NnueEvaluator()
+    if chosen in ("", "stub", "hce"):
+        return _StubEvaluator()
+    raise ValueError(f"unknown evaluator: {chosen!r}")
 
 
 class _StubSearch(Search):
@@ -89,10 +130,12 @@ class ShimUciController(UciController):
         input_stream: Iterable[str] | None = None,
         output_stream: TextIO | None = None,
         rng: random.Random | None = None,
+        evaluator: Evaluator | None = None,
     ) -> None:
         super().__init__(board, search, input_stream, output_stream)
         self._board = chess.Board()
         self._rng = rng or random.Random()
+        self._evaluator = evaluator
 
     def handle_new_game(self) -> None:
         self._board = chess.Board()
@@ -133,8 +176,25 @@ class ShimUciController(UciController):
         if not legal:
             self._writeln("bestmove 0000")
             return
-        move = self._rng.choice(legal)
-        self.send_info_string({"depth": 1, "score cp": 0, "nodes": len(legal), "pv": move.uci()})
+
+        if self._evaluator is not None and not isinstance(self._evaluator, _StubEvaluator):
+            white_to_move = self._board.turn == chess.WHITE
+            best_move = legal[0]
+            best_score = -10**9
+            for mv in legal:
+                self._board.push(mv)
+                cp = self._evaluator.evaluate_position(_PyChessBoardAdapter(self._board))
+                self._board.pop()
+                signed = cp if white_to_move else -cp
+                if signed > best_score:
+                    best_score = signed
+                    best_move = mv
+            move = best_move
+            score_cp = best_score if white_to_move else -best_score
+            self.send_info_string({"depth": 1, "score cp": int(score_cp), "nodes": len(legal), "pv": move.uci()})
+        else:
+            move = self._rng.choice(legal)
+            self.send_info_string({"depth": 1, "score cp": 0, "nodes": len(legal), "pv": move.uci()})
         self._writeln(f"bestmove {move.uci()}")
 
 
@@ -146,17 +206,28 @@ class ShimUciController(UciController):
 def build_controller(
     input_stream: Iterable[str] | None = None,
     output_stream: TextIO | None = None,
+    evaluator_name: str | None = None,
 ) -> ShimUciController:
+    evaluator = build_evaluator(evaluator_name)
     return ShimUciController(
         board=_StubBoard(),
-        search=_StubSearch(_StubEvaluator(), TranspositionTable()),
+        search=_StubSearch(evaluator, TranspositionTable()),
         input_stream=input_stream,
         output_stream=output_stream,
+        evaluator=evaluator,
     )
 
 
 def main() -> int:
-    controller = build_controller()
+    # CLI form: `python -m chesspoint72.engine --evaluator nnue`
+    evaluator_name: str | None = None
+    argv = sys.argv[1:]
+    for i, arg in enumerate(argv):
+        if arg == "--evaluator" and i + 1 < len(argv):
+            evaluator_name = argv[i + 1]
+        elif arg.startswith("--evaluator="):
+            evaluator_name = arg.split("=", 1)[1]
+    controller = build_controller(evaluator_name=evaluator_name)
     try:
         controller.start_listening_loop()
     except KeyboardInterrupt:
