@@ -10,6 +10,8 @@ Public API
 material_score(board) -> int
     Centipawns, positive = good for White.
 """
+# @capability: evaluator
+# @capability: material
 from __future__ import annotations
 
 import chess

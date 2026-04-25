@@ -44,10 +44,19 @@ class MovePickerPolicy(MoveOrderingPolicy):
         self._cap_hist     = CaptureHistory()
         self._cont_hist    = ContinuationHistory()
         self._current_depth: int = 0
+        self._cont_keys: tuple[int, ...] = ()
 
     def set_depth(self, depth: int) -> None:
         """Called by NegamaxSearch before each order_moves to pass current depth."""
         self._current_depth = depth
+
+    def set_cont_keys(self, keys: tuple[int, ...]) -> None:
+        """Side-channel: pass continuation-history context keys before order_moves.
+
+        Called by GMSearch before each node to wire in the move stack so that
+        MovePicker can use continuation history for quiet-move ordering.
+        """
+        self._cont_keys = keys
 
     def order_moves(
         self,
@@ -63,13 +72,41 @@ class MovePickerPolicy(MoveOrderingPolicy):
             butterfly=self._butterfly,
             capture_hist=self._cap_hist,
             cont_hist=self._cont_hist,
-            cont_hist_keys=(),  # continuation history disabled (no stack context)
+            cont_hist_keys=self._cont_keys,
             in_check=in_check,
         )
         return list(picker)
+
+    def record_quiet_cutoff(
+        self,
+        color: int,
+        from_sq: int,
+        to_sq: int,
+        piece_idx: int,
+        depth: int,
+        cont_keys: tuple[int, ...],
+    ) -> None:
+        """Update butterfly and continuation history on a quiet-move beta cutoff."""
+        bonus = min(depth * depth, 2048)
+        self._butterfly.update(color, from_sq, to_sq, bonus)
+        for key in cont_keys:
+            if key != CONT_HIST_SENTINEL:
+                self._cont_hist.update(key, piece_idx, to_sq, bonus)
+
+    def record_capture_cutoff(
+        self,
+        piece_idx: int,
+        to_sq: int,
+        cap_type: int,
+        depth: int,
+    ) -> None:
+        """Update capture history on a capture beta cutoff."""
+        bonus = min(depth * depth, 2048)
+        self._cap_hist.update(piece_idx, to_sq, cap_type, bonus)
 
     def clear(self) -> None:
         """Reset all history tables; call at the start of each root search."""
         self._butterfly    = ButterflyHistory()
         self._cap_hist     = CaptureHistory()
         self._cont_hist    = ContinuationHistory()
+        self._cont_keys    = ()

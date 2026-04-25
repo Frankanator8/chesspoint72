@@ -1,3 +1,5 @@
+# @capability: move_ordering
+# @capability: staged_picker
 """
 Stockfish 16+ style tiered 'Pick Best' move picker.
 
