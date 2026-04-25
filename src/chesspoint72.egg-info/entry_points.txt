@@ -1,0 +1,2 @@
+[console_scripts]
+chesspoint72 = chesspoint72.main:main
