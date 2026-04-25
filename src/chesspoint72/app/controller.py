@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import chess
 import pygame
 
-from chesspoint72.engine.uci_client import UciEngineClient
+from chesspoint72.engine.uci.client import UciEngineClient
 from chesspoint72.models import GameState
 from chesspoint72.ui.renderer import BoardRenderer
 

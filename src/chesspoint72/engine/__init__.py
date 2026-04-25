@@ -1,24 +1,41 @@
-"""Internal chess-engine base classes and external UCI integration."""
+"""Chesspoint72 chess engine package.
 
-from chesspoint72.engine.board import Board
-from chesspoint72.engine.evaluator import Evaluator
-from chesspoint72.engine.heuristics import HistoryTable, KillerMoveTable
-from chesspoint72.engine.move_sorter import MoveSorter
-from chesspoint72.engine.mvv_lva import MVV_LVA, score_capture
-from chesspoint72.engine.negamax import NegamaxSearch
-from chesspoint72.engine.nnue_evaluator import NnueEvaluator, NnueNetwork, fen_to_tensor
-from chesspoint72.engine.policies import MoveOrderingPolicy, PruningPolicy
-from chesspoint72.engine.search import Search
-from chesspoint72.engine.transposition import TranspositionEntry, TranspositionTable
-from chesspoint72.engine.types import (
+Public surface re-exports the core interfaces (the ABCs every implementation
+plugs into) plus the headline registered implementations. Concrete modules
+live in subpackages: ``core``, ``evaluators``, ``search``, ``ordering``,
+``uci``. The ``factory`` module is the single dispatch point for selecting
+implementations at runtime.
+"""
+
+from chesspoint72.engine.core import (
+    Board,
     CastlingRights,
     Color,
+    Evaluator,
     Move,
+    MoveOrderingPolicy,
     NodeType,
     PieceType,
+    PruningPolicy,
+    Search,
+    TranspositionEntry,
+    TranspositionTable,
     square_to_algebraic,
 )
-from chesspoint72.engine.uci_controller import UciController
+from chesspoint72.engine.evaluators.nnue import (
+    NnueEvaluator,
+    NnueNetwork,
+    fen_to_tensor,
+)
+from chesspoint72.engine.ordering import (
+    HistoryTable,
+    KillerMoveTable,
+    MVV_LVA,
+    MoveSorter,
+    score_capture,
+)
+from chesspoint72.engine.search.negamax import NegamaxSearch
+from chesspoint72.engine.uci import UciController
 
 __all__ = [
     "Board",
@@ -27,14 +44,13 @@ __all__ = [
     "Evaluator",
     "HistoryTable",
     "KillerMoveTable",
-    "MoveSorter",
     "MVV_LVA",
     "Move",
     "MoveOrderingPolicy",
+    "MoveSorter",
     "NegamaxSearch",
     "NnueEvaluator",
     "NnueNetwork",
-    "fen_to_tensor",
     "NodeType",
     "PieceType",
     "PruningPolicy",
@@ -42,6 +58,7 @@ __all__ = [
     "TranspositionEntry",
     "TranspositionTable",
     "UciController",
+    "fen_to_tensor",
     "score_capture",
     "square_to_algebraic",
 ]

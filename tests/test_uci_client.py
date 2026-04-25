@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import chess
 import chess.engine
 
-from chesspoint72.engine.uci_client import UciEngineClient
+from chesspoint72.engine.uci.client import UciEngineClient
 
 
 class DummyEngine:
