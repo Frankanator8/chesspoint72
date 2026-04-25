@@ -1,8 +1,9 @@
 """NegamaxSearch with the forward-pruning module wired in.
 
-This file is the *separate-folder* counterpart to
-``src/chesspoint72/engine/negamax.py``. It is a copy of that search with
-the pruning calls inserted in the prescribed order:
+This file lives alongside the rest of the engine at
+``src/chesspoint72/forward_pruning/search_modified.py``. It is a copy of
+``src/chesspoint72/engine/search/negamax/negamax.py`` with the pruning
+calls inserted in the prescribed order:
 
     NMP  →  Razoring  →  (enter move loop)  →  Futility  →  LMR
 
@@ -20,16 +21,16 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING
 
-from chesspoint72.engine.evaluator import Evaluator
-from chesspoint72.engine.policies import MoveOrderingPolicy, PruningPolicy
-from chesspoint72.engine.search import Search
-from chesspoint72.engine.transposition import TranspositionTable
-from chesspoint72.engine.types import Move, NodeType
+from chesspoint72.engine.core.evaluator import Evaluator
+from chesspoint72.engine.core.policies import MoveOrderingPolicy, PruningPolicy
+from chesspoint72.engine.core.search import Search
+from chesspoint72.engine.core.transposition import TranspositionTable
+from chesspoint72.engine.core.types import Move, NodeType
 
-from forward_pruning import pruning
+from chesspoint72.forward_pruning import pruning
 
 if TYPE_CHECKING:
-    from chesspoint72.engine.board import Board
+    from chesspoint72.engine.core.board import Board
 
 _INF: int = 10_000_000
 _MATE_SCORE: int = 9_000_000

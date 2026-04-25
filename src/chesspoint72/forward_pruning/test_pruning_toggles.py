@@ -1,7 +1,7 @@
 """Standalone toggle test for forward_pruning_config.
 
 Run directly:
-    .venv/bin/python forward_pruning/test_pruning_toggles.py
+    .venv/bin/python src/chesspoint72/forward_pruning/test_pruning_toggles.py
 
 No external dependencies — uses the built-in ``assert`` statement only.
 """
@@ -10,10 +10,12 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Make the repo root importable when run directly (not via pytest).
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+# Make ``src/`` importable when run directly (not via pytest, which already
+# does this via pyproject's pythonpath setting).
+# parents: [0]=forward_pruning, [1]=chesspoint72, [2]=src
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from forward_pruning.forward_pruning_config import (
+from chesspoint72.forward_pruning.forward_pruning_config import (
     PruningConfig,
     default_pruning_config,
     disable_futility,
