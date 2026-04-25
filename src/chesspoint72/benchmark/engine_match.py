@@ -6,8 +6,8 @@ from typing import Iterable
 import chess
 import chess.engine
 
-def _play_game(white: chess.engine.SimpleEngine, black: chess.engine.SimpleEngine, movetime_s: float, move_cap: int = 400) -> str:
-    board = chess.Board()
+def _play_game(white: chess.engine.SimpleEngine, black: chess.engine.SimpleEngine, movetime_s: float, move_cap: int = 400, fen: str | None = None) -> str:
+    board = chess.Board(fen) if fen else chess.Board()
     limit = chess.engine.Limit(time=movetime_s)
     plies = 0
     while not board.is_game_over(claim_draw=True) and plies < move_cap:
@@ -36,7 +36,7 @@ class MatchResult:
         return (f"\n=== Engine Match: {name1} vs {name2} ===\n"
                 f"  Games: {self.games} | {name1} wins: {self.e1_wins} | Draws: {self.draws} | {name2} wins: {self.e2_wins}\n")
 
-def run_match(engine1_dir: str | Path, engine2_dir: str | Path, games: int = 100, movetime_s: float = 1.0, seed: int | None = None, progress: bool = True, out=sys.stdout) -> MatchResult:
+def run_match(engine1_dir: str | Path, engine2_dir: str | Path, games: int = 100, movetime_s: float = 1.0, seed: int | None = None, progress: bool = True, out=sys.stdout, positions: list[str | None] | None = None) -> MatchResult:
     dir1, dir2 = Path(engine1_dir).resolve(), Path(engine2_dir).resolve()
     name1, name2 = dir1.name, dir2.name
     rng = random.Random(seed)
@@ -52,12 +52,14 @@ def run_match(engine1_dir: str | Path, engine2_dir: str | Path, games: int = 100
         eng1.quit()
         raise
 
+    pos_list: list[str | None] = positions if positions else [None]
     try:
         for g in range(games):
             e1_is_white = rng.choice([True, False])
             white, black = (eng1, eng2) if e1_is_white else (eng2, eng1)
+            fen = pos_list[g % len(pos_list)]
             print(f"--- Game {g+1}/{games} started ---")
-            result_str = _play_game(white, black, movetime_s)
+            result_str = _play_game(white, black, movetime_s, fen=fen)
             
             if result_str == "1-0":
                 e1_wins += 1 if e1_is_white else 0; e2_wins += 0 if e1_is_white else 1
