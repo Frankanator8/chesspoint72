@@ -34,10 +34,6 @@ def create_app() -> FastAPI:
     def eve() -> FileResponse:
         return FileResponse(_STATIC_DIR / "eve.html")
 
-    @app.get("/tournament", response_class=HTMLResponse)
-    def tournament() -> FileResponse:
-        return FileResponse(_STATIC_DIR / "tournament.html")
-
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
         return {"ok": "true"}
