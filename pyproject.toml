@@ -25,7 +25,9 @@ chesspoint72 = "chesspoint72.main:main"
 chesspoint72-engine = "chesspoint72.engine.factory:main"
 chesspoint72-battle = "chesspoint72.benchmark.battle_royale:main"
 chesspoint72-frank-v3 = "chesspoint72.aiengines.frank.v3.engine:main"
-chesspoint72-bench = "chesspoint72.benchmark.engine_match:main"
+chesspoint72-minal-v1 = "chesspoint72.aiengines.minal.v1.engine:main"
+chesspoint72-minal-v2 = "chesspoint72.aiengines.minal.v2.engine:main"
+chesspoint72-minal-v3 = "chesspoint72.aiengines.minal.v3.engine:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
