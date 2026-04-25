@@ -12,6 +12,10 @@ src/chesspoint72.egg-info/top_level.txt
 src/chesspoint72/app/__init__.py
 src/chesspoint72/app/controller.py
 src/chesspoint72/engine/__init__.py
+src/chesspoint72/engine/__main__.py
+src/chesspoint72/engine/board.py
+src/chesspoint72/engine/evaluator.py
+src/chesspoint72/engine/main.py
 src/chesspoint72/engine/board.py
 src/chesspoint72/engine/evaluator.py
 src/chesspoint72/engine/search.py
