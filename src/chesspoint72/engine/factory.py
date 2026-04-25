@@ -15,6 +15,7 @@ from __future__ import annotations
 import os
 import sys
 import time
+from pathlib import Path
 from typing import Callable, Iterable, TextIO
 
 import chess
@@ -72,10 +73,20 @@ class _StubPruningPolicy(PruningPolicy):
 # --------------------------------------------------------------------------- #
 
 
+_NNUE_WEIGHTS_DIR = Path(__file__).resolve().parent / "evaluators" / "nnue" / "weights"
+
+
 def _build_nnue() -> Evaluator:
     from chesspoint72.engine.evaluators.nnue import NnueEvaluator
     weights = os.environ.get("CHESSPOINT72_NNUE_WEIGHTS")
     return NnueEvaluator(weights) if weights else NnueEvaluator()
+
+
+def _build_named_nnue(filename: str) -> Callable[[], Evaluator]:
+    def _builder() -> Evaluator:
+        from chesspoint72.engine.evaluators.nnue import NnueEvaluator
+        return NnueEvaluator(_NNUE_WEIGHTS_DIR / filename)
+    return _builder
 
 
 class _MaterialEvaluator(Evaluator):
@@ -202,9 +213,14 @@ def _build_hce(modules: str | None) -> Evaluator:
 
 
 _EVALUATOR_REGISTRY: dict[str, Callable[[], Evaluator]] = {
-    "stub":     lambda: _StubEvaluator(),
-    "material": lambda: _MaterialEvaluator(),
-    "nnue":     _build_nnue,
+    "stub":           lambda: _StubEvaluator(),
+    "material":       lambda: _MaterialEvaluator(),
+    "nnue":           _build_nnue,
+    "nnue_baseline":  _build_named_nnue("nnue_weights.pt"),
+    "nnue_tank":      _build_named_nnue("nnue_tank_final.pt"),
+    "nnue_tactician": _build_named_nnue("nnue_tactician_final.pt"),
+    "nnue_speedster": _build_named_nnue("nnue_speedster_final.pt"),
+    "nnue_finisher":  _build_named_nnue("nnue_finisher_final.pt"),
 }
 
 
