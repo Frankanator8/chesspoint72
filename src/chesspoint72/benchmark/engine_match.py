@@ -70,7 +70,7 @@ def run_match(engine1_dir: str | Path, engine2_dir: str | Path, games: int = 100
                 print(f"Result: {result_str} [W={e1_wins} D={draws} L={e2_wins}]\n")
     finally:
         for eng in (eng1, eng2):
-            try: eng.quit()
+            try: eng.close()
             except Exception: pass
     return MatchResult(games, e1_wins, draws, e2_wins, round(time.monotonic() - t0, 2))
 
