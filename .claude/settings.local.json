@@ -1,6 +1,18 @@
 {
-  "enabledMcpjsonServers": [
-    "chesspoint72-orchestrator"
-  ],
-  "enableAllProjectMcpServers": true
+  "permissions": {
+    "allow": [
+      "Bash(git merge *)",
+      "Bash(git fetch *)",
+      "Bash(git show *)",
+      "Read(//tmp/**)",
+      "PowerShell(Out-File *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(python *)",
+      "Bash(git restore *)",
+      "Bash(git pull *)",
+      "Bash(git stash *)"
+    ]
+  }
 }
