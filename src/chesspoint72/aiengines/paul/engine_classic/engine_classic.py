@@ -21,7 +21,7 @@ from chesspoint72.engine.search.negamax import NegamaxSearch
 
 from .._common import WEIGHTS_DIR, PassthroughOrdering
 
-_WEIGHTS = WEIGHTS_DIR / "real_nnue_epoch_2.pt"
+_WEIGHTS = WEIGHTS_DIR / "real_nnue_epoch_4.pt"
 
 
 def build_controller(

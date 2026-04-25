@@ -1,6 +1,6 @@
 """engine_v2.py — Paul's V2 engine using real_nnue_epoch_2 weights.
 
-Full UCI-compatible engine backed by the real_nnue_epoch_2.pt checkpoint,
+Full UCI-compatible engine backed by the real_nnue_epoch_4.pt checkpoint,
 standard NegamaxSearch with iterative deepening and all pruning enabled.
 
 CLI:
@@ -20,7 +20,7 @@ from chesspoint72.engine.search.negamax import NegamaxSearch
 
 from .._common import WEIGHTS_DIR, PassthroughOrdering
 
-_WEIGHTS = WEIGHTS_DIR / "real_nnue_epoch_2.pt"
+_WEIGHTS = WEIGHTS_DIR / "real_nnue_epoch_4.pt"
 
 
 def build_controller(

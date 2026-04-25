@@ -56,7 +56,7 @@ class NnueNetwork(nn.Module):
         return self.net(x)
 
 
-_DEFAULT_WEIGHTS_PATH = Path(__file__).resolve().parent / "weights" / "real_nnue_epoch_2.pt"
+_DEFAULT_WEIGHTS_PATH = Path(__file__).resolve().parent / "weights" / "real_nnue_epoch_4.pt"
 
 
 class NnueEvaluator(Evaluator):
