@@ -2,7 +2,8 @@
 
 Two artifacts:
 1. `SEARCH_DIFF.patch` — full unified diff between
-   `src/chesspoint72/engine/negamax.py` and `forward_pruning/search_modified.py`.
+   `src/chesspoint72/engine/search/negamax/negamax.py` and
+   `src/chesspoint72/forward_pruning/search_modified.py`.
    Apply with `patch -p0 < SEARCH_DIFF.patch` from the repo root.
 2. This file — focused logical diff: only the algorithmically-meaningful
    changes inside `search_node`, with surrounding context.
@@ -10,6 +11,14 @@ Two artifacts:
 The class was renamed (`NegamaxSearch` → `PrunedNegamaxSearch`) and a
 `pruning_config` constructor parameter was added; everything else outside
 `search_node` is mechanically equivalent to the upstream file.
+
+> **Note (2026-04-24):** Upstream `engine/` was restructured (commit
+> `9779d2d refactor: separate engine interfaces from implementations`) and a
+> separate upstream `feature/forward_pruning` branch was merged. The patch
+> in this folder is now a diff against the upstream baseline as it existed
+> when the pruning module was first written; its line numbers will not
+> apply cleanly to current upstream until a reviewer reconciles the two
+> forward-pruning efforts.
 
 ---
 

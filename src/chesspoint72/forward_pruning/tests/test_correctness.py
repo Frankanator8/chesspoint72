@@ -2,36 +2,36 @@
 
 Run from repo root with the project venv:
 
-    .venv/bin/python -m pytest forward_pruning/tests/test_correctness.py -v
+    .venv/bin/python -m pytest src/chesspoint72/forward_pruning/tests/test_correctness.py -v
 
 Or directly:
 
-    .venv/bin/python forward_pruning/tests/test_correctness.py
+    .venv/bin/python src/chesspoint72/forward_pruning/tests/test_correctness.py
 """
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-# Repo root and src/ on path so this file is runnable both via pytest and
-# `python forward_pruning/tests/test_correctness.py`.
-_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(_ROOT / "src"))
-sys.path.insert(0, str(_ROOT))
+# Make ``src/`` importable when run directly. pytest already does this via
+# pyproject's pythonpath setting.
+# parents: [0]=tests, [1]=forward_pruning, [2]=chesspoint72, [3]=src
+_SRC = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(_SRC))
 
 import chess
 
-from chesspoint72.engine.transposition import TranspositionTable
+from chesspoint72.engine.core.transposition import TranspositionTable
 
-from forward_pruning import pruning
-from forward_pruning._test_support import (
+from chesspoint72.forward_pruning import pruning
+from chesspoint72.forward_pruning._test_support import (
     CapturesFirstOrdering,
     MaterialEvaluator,
     NullPruningPolicy,
     PythonChessBoard,
     TestPruningConfig,
 )
-from forward_pruning.search_modified import PrunedNegamaxSearch
+from chesspoint72.forward_pruning.search_modified import PrunedNegamaxSearch
 
 
 # --------------------------------------------------------------------------- #
