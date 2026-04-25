@@ -1,1 +1,0 @@
-Make sure to note down the model used, tokens used, and that everything is self-contained within your folder.

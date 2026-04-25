@@ -7,6 +7,8 @@ to h1=256, h2=32 to stay backward-compatible with nnue_weights.pt.
 Input encoding: 12 piece-type planes (P,N,B,R,Q,K,p,n,b,r,q,k) of 64 squares,
 flattened to a 768-element float tensor with 1.0 where a piece sits.
 """
+# @capability: evaluator
+# @capability: nnue
 from __future__ import annotations
 
 from pathlib import Path

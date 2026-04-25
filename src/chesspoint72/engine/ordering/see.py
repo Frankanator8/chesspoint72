@@ -1,3 +1,4 @@
+# @capability: see
 """
 Bitboard-optimized Static Exchange Evaluation (SEE).
 

@@ -10,6 +10,8 @@ Move conversion is done at the boundary: python-chess uses ``chess.Move``
 promotion-PieceType, is_capture). PieceType values 1..6 happen to match
 python-chess's ``chess.PAWN``..``chess.KING`` integers, so the cast is direct.
 """
+# @capability: board
+# @capability: move_generation
 from __future__ import annotations
 
 import chess
