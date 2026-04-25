@@ -27,6 +27,7 @@ from chesspoint72.engine.core.policies import MoveOrderingPolicy, PruningPolicy
 from chesspoint72.engine.core.search import Search
 from chesspoint72.engine.core.transposition import TranspositionTable
 from chesspoint72.engine.core.types import Move
+from chesspoint72.engine.ordering import HistoryTable, KillerMoveTable, MoveSorter
 from chesspoint72.engine.pruning import ForwardPruningPolicy, default_pruning_config
 from chesspoint72.engine.search.negamax import NegamaxSearch
 from chesspoint72.engine.uci.controller import UciController
@@ -66,6 +67,42 @@ class _StubPruningPolicy(PruningPolicy):
         static_eval: int,
     ) -> int | None:
         return None
+
+
+class MoveSorterPolicy(MoveOrderingPolicy):
+    """Wraps MoveSorter (TT + MVV-LVA + killers + history) as a MoveOrderingPolicy.
+
+    Exposes ``set_depth(depth)`` so NegamaxSearch can pass the current search
+    depth before each ``order_moves`` call; killer lookups then use the correct
+    depth slot without changing the ABC signature.
+
+    Tables are injected at construction time so that ``build_controller`` can
+    share the exact same ``KillerMoveTable`` and ``HistoryTable`` instances
+    between this policy and ``NegamaxSearch``.  The search updates the tables
+    on beta-cutoffs; this policy reads them for ordering.
+    """
+
+    def __init__(
+        self,
+        killer_table: KillerMoveTable,
+        history_table: HistoryTable,
+    ) -> None:
+        self._sorter = MoveSorter(
+            killer_table=killer_table,
+            history_table=history_table,
+        )
+        self._current_depth: int = 0
+
+    def set_depth(self, depth: int) -> None:
+        self._current_depth = depth
+
+    def order_moves(
+        self,
+        moves: list[Move],
+        board: Board,
+        tt_best_move: Move | None = None,
+    ) -> list[Move]:
+        return list(self._sorter.iter_moves(board, moves, tt_best_move, self._current_depth))
 
 
 # --------------------------------------------------------------------------- #
@@ -415,13 +452,24 @@ def build_controller(
     board = PyChessBoard()
     pruning_config = default_pruning_config()
     pruning_policy = ForwardPruningPolicy(pruning_config)
+
+    # Shared tables: MoveSorterPolicy reads them for ordering; NegamaxSearch
+    # writes them on beta-cutoffs.  Both must point at the same objects.
+    killer_table = KillerMoveTable()
+    history_table = HistoryTable()
+    ordering_policy = MoveSorterPolicy(killer_table, history_table)
+
     search = NegamaxSearch(
         evaluator,
         TranspositionTable(),
-        _StubMoveOrderingPolicy(),
+        ordering_policy,
         pruning_policy,
         pruning_config,
     )
+    # Replace the tables NegamaxSearch created internally with the shared ones.
+    search.killer_table = killer_table
+    search.history_table = history_table
+
     return StandardUciController(
         board=board,
         search=search,

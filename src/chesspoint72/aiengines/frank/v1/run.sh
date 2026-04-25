@@ -1,3 +1,2 @@
 #!/usr/bin/env bash
-exec python -m chesspoint72.aiengines.frank.v1
-
+exec python3 -m chesspoint72.aiengines.frank.v1

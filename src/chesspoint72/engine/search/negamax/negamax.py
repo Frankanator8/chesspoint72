@@ -60,6 +60,18 @@ class NegamaxSearch(Search):
         # Move-ordering heuristic tables — both reset at the start of each search.
         self.killer_table: KillerMoveTable = KillerMoveTable()
         self.history_table: HistoryTable = HistoryTable()
+        # Stat counters — reset at the start of each find_best_move call.
+        self.nodes_evaluated: int = 0
+        self.beta_cutoffs: int = 0
+        self.tt_lookups: int = 0
+        self.tt_hits: int = 0
+        self.depth_reached: int = 0
+        # Cache set_depth from the ordering policy if available (avoids hasattr
+        # on every node); None means the policy has no depth-awareness.
+        self._set_ordering_depth = getattr(move_ordering_policy, "set_depth", None)
+        # Best score at the root from the last completed depth; used by
+        # AspirationNegamaxSearch to seed the aspiration window.
+        self._last_root_score: int = 0
         # Late-bind search callbacks into the pruning policy (e.g. ForwardPruningPolicy).
         if hasattr(pruning_policy, "attach_search"):
             pruning_policy.attach_search(self)
@@ -85,6 +97,11 @@ class NegamaxSearch(Search):
         self._allotted_time = allotted_time
         self._start_time = time.monotonic()
         self.nodes_evaluated = 0
+        self.beta_cutoffs = 0
+        self.tt_lookups = 0
+        self.tt_hits = 0
+        self.depth_reached = 0
+        self._last_root_score = 0
         self._ply = 0
         self.killer_table.clear()
         self.history_table.clear()
@@ -101,6 +118,7 @@ class NegamaxSearch(Search):
                 break
             if candidate is not None:
                 best_move = candidate
+            self.depth_reached = depth
 
         if best_move is None:
             # Absolute last resort: return the first legal move so we never
@@ -154,11 +172,13 @@ class NegamaxSearch(Search):
         # Transposition table probe
         # ------------------------------------------------------------------ #
         zobrist = calculate_zobrist_hash()
+        self.tt_lookups += 1
         tt_entry = tt_retrieve(zobrist)
         tt_best_move: Move | None = None
         original_alpha = alpha
 
         if tt_entry is not None and tt_entry.depth >= depth:
+            self.tt_hits += 1
             tt_best_move = tt_entry.best_move
             if tt_entry.node_type == EXACT:
                 return tt_entry.score
@@ -196,6 +216,8 @@ class NegamaxSearch(Search):
                 return -(_MATE_SCORE - self._ply)
             return 0  # Stalemate
 
+        if self._set_ordering_depth is not None:
+            self._set_ordering_depth(depth)
         moves = order_moves(moves, board, tt_best_move)
 
         # ------------------------------------------------------------------ #
@@ -241,6 +263,7 @@ class NegamaxSearch(Search):
                 alpha = score
 
             if alpha >= beta:
+                self.beta_cutoffs += 1
                 self.killer_table.update(move, depth)
                 self.update_history(move, depth)
                 break  # Beta cut-off
@@ -334,6 +357,8 @@ class NegamaxSearch(Search):
         tt_best_move = tt_entry.best_move if tt_entry is not None else None
 
         moves = board.generate_legal_moves()
+        if self._set_ordering_depth is not None:
+            self._set_ordering_depth(depth)
         moves = order_moves(moves, board, tt_best_move)
 
         for move in moves:
@@ -347,6 +372,7 @@ class NegamaxSearch(Search):
                 alpha = score
                 best_move = move
 
+        self._last_root_score = alpha
         return best_move
 
     def update_history(self, move: Move, depth_remaining: int) -> None:
@@ -356,6 +382,16 @@ class NegamaxSearch(Search):
         only needs to supply the move and the remaining depth.
         """
         self.history_table.update(self._board.side_to_move, move, depth_remaining)
+
+    def get_stats(self) -> dict:
+        """Return a snapshot of per-search counters for benchmarking."""
+        return {
+            "nodes":         self.nodes_evaluated,
+            "beta_cutoffs":  self.beta_cutoffs,
+            "tt_lookups":    self.tt_lookups,
+            "tt_hits":       self.tt_hits,
+            "depth_reached": self.depth_reached,
+        }
 
     def _time_exceeded(self) -> bool:
         return time.monotonic() - self._start_time >= self._allotted_time
