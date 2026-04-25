@@ -1,3 +1,15 @@
+"""Static material evaluation.
+
+Provides a simple centipawn material balance with piece-pair adjustments
+(bishop pair bonus, knight/rook pair penalties).  This module is used
+directly by legacy callers; the unified HCE in hce.py supersedes it for
+full evaluations.
+
+Public API
+----------
+material_score(board) -> int
+    Centipawns, positive = good for White.
+"""
 from __future__ import annotations
 
 import chess

@@ -1,3 +1,24 @@
+"""Piece-Square Tables (PSTs) and tapered PST scoring.
+
+Each table is a flat 64-element list written rank-8-at-top, a-file-at-left
+(i.e. visually matching a board diagram).  Separate midgame (_MG) and
+endgame (_EG) tables are blended by a phase weight so positional preferences
+shift smoothly as pieces come off the board.
+
+Index mapping
+-------------
+- White piece on square ``sq``:  ``pst[sq ^ 56]``   (flip rank, keep file)
+- Black piece on square ``sq``:  ``pst[sq]``         (vertical mirror is free)
+
+python-chess square encoding: a1=0 … h1=7, a2=8 … h8=63.
+XOR-56 flips bits 3-5 of the square index, inverting the rank while
+leaving the file unchanged.
+
+Public API
+----------
+pst_score(board) -> int
+    Tapered PST bonus in centipawns from White's perspective.
+"""
 from __future__ import annotations
 
 import chess

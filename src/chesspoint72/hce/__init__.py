@@ -1,3 +1,10 @@
+"""Hand-Crafted Evaluation (HCE) package.
+
+The primary entry point is ``evaluate(board)``, which returns a tapered
+centipawn score from the side-to-move's perspective.  The legacy helpers
+``material_score`` and ``pst_score`` are re-exported for callers that need
+individual components.
+"""
 from .hce import evaluate, explain, get_game_phase
 from .material import (
     BISHOP_PAIR_BONUS,
