@@ -73,3 +73,25 @@
 - Standardized guidance on `python3 -m chesspoint72.aiengines.frank.v3` and installed console scripts (`chesspoint72-frank-v3`, `chesspoint72-engine`) for tooling that needs executable paths.
 
 **Token efficiency (estimated):** ~1k tokens for targeted grep + doc patch; no engine-logic churn.
+## 2026-04-25 — Calix engine (agent-driven module selector)
+
+**Prompt shape:** seven-phase brief — Read repo → Create engine → Module Selector Agent → Three info modes (blind / aware / autonomous) → UCI entrypoint → Registry scanner + `# @capability:` tag convention → Tests + README. Mid-session correction: "do not allow the agent to generate or register new modules; the autonomous `can_add_modules=True` flag must remain inert."
+
+**Files created in `src/chesspoint72/aiengines/jonathan/`:**
+- `__init__.py` — package marker / map.
+- `registry.py` — walks `src/chesspoint72`, parses `# @capability:` tags within the first 40 lines, returns `ModuleDescriptor[]`. Best-effort AST parse of `default_*_config` factories surfaces keyword defaults so the agent can introspect.
+- `agent.py` — `AgentContext`, `EngineConfig`, position-inspection helpers (`_is_endgame`, `_is_tactical`), and `select_modules` rule cascade keyed by mode + position + clock. `with_runtime_position` refreshes hints per `go` for non-blind modes.
+- `policies.py` — local `StubMoveOrderingPolicy`, `StubPruningPolicy`, and `CapturesFirstOrderingPolicy` (TT-first → captures → quiets, no shared search state required).
+- `main.py` — CLI flags (`--agent-mode {blind|aware|autonomous}`, `--depth`, `--time`), `CalixController` re-runs the agent at every `go` so the configuration tracks the live game, activation log written to stderr to keep stdout UCI-clean.
+- `README.md` — operator-facing docs covering all three modes and the no-stub-generation guarantee.
+
+**Modules tagged with `# @capability:`** (13 total, discovered by scanner):
+`engine.boards.pychess`, `engine.core.transposition`, `engine.evaluators.nnue.evaluator`, `engine.ordering.{move_picker, move_sorter, see}`, `engine.pruning.{algorithms, config, policy}`, `engine.search.negamax.negamax`, `engine.uci.controller`, `hce.{material, hce}`.
+
+**Defensive upstream patch:** `engine/__init__.py` was wrapping its NNUE re-exports in an unconditional import; without `torch` installed even the existing test suite failed at collection time. Replaced the eager import with a `try/except ImportError` that nulls out the symbols. Public API unchanged for users who have torch.
+
+**User mid-session correction:** initial draft of `agent.py` honoured the literal Phase 7/test-3 instruction by writing a stub module file under `aiengines/jonathan/modules/` whenever a desired capability was missing in autonomous mode. After the user countermanded that ("don't allow the agent to generate and register new modules"), `_generate_stub_module` and the surrounding branch were removed; the autonomous-mode test was rewritten to assert the inverse — no synthesised modules, no `chesspoint72.aiengines.jonathan.modules.*` activations.
+
+**Validation surface:** 23 new tests in `tests/test_calix_{registry,agent_modes,integration}.py`, full suite (40 tests including 17 pre-existing) green. Move-generation unchanged ⇒ `run_perft` not required. Search algorithms unchanged ⇒ `play_sprt_match` not required (Calix uses the upstream `NegamaxSearch` and `ForwardPruningPolicy` as-is, only injecting different config knobs). Tactical strength baseline unchanged ⇒ `run_tactics` not required.
+
+**Token efficiency notes:** single seven-phase prompt drove the entire build in one pass. The user correction landed mid-implementation and required only a localised excision (one helper, one branch, one test rewrite) — total revision cost ≈ 600 tokens against the ≈ 9k-token implementation. Letting the registry scanner discover modules from `# @capability:` tags rather than hardcoding a catalogue meant the agent code didn't have to be rewritten when the tag list grew. The biggest avoidable cost was the initial torch debug cycle: a full repo install surfaced the latent NNUE-eager-import bug that I would have hit on first test run anyway, so the cycle was net useful but could have been short-circuited by reading `engine/__init__.py` upfront.

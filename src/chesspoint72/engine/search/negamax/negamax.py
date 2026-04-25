@@ -1,3 +1,6 @@
+# @capability: search
+# @capability: alpha_beta
+# @capability: quiescence_search
 from __future__ import annotations
 
 import time
