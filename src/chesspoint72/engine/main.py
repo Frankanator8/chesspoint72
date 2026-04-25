@@ -28,6 +28,7 @@ import chess
 
 from chesspoint72.engine.board import Board
 from chesspoint72.engine.evaluator import Evaluator
+from chesspoint72.engine.policies import MoveOrderingPolicy, PruningPolicy
 from chesspoint72.engine.search import Search
 from chesspoint72.engine.transposition import TranspositionTable
 from chesspoint72.engine.types import Move
@@ -83,6 +84,28 @@ class _StubEvaluator(Evaluator):
         return 0
 
 
+class _StubMoveOrderingPolicy(MoveOrderingPolicy):
+    def order_moves(
+        self,
+        moves: list[Move],
+        board: Board,
+        tt_best_move: Move | None = None,
+    ) -> list[Move]:
+        return moves
+
+
+class _StubPruningPolicy(PruningPolicy):
+    def try_prune(
+        self,
+        board: Board,
+        depth: int,
+        alpha: int,
+        beta: int,
+        static_eval: int,
+    ) -> int | None:
+        return None
+
+
 def build_evaluator(name: str | None = None) -> Evaluator:
     """Factory: select an Evaluator implementation by name.
 
@@ -107,8 +130,6 @@ class _StubSearch(Search):
         return 0
     def quiescence_search(self, alpha: int, beta: int) -> int:
         return 0
-    def order_moves(self, moves: list[Move]) -> list[Move]:
-        return moves
 
 
 # --------------------------------------------------------------------------- #
@@ -211,7 +232,12 @@ def build_controller(
     evaluator = build_evaluator(evaluator_name)
     return ShimUciController(
         board=_StubBoard(),
-        search=_StubSearch(evaluator, TranspositionTable()),
+        search=_StubSearch(
+            evaluator,
+            TranspositionTable(),
+            _StubMoveOrderingPolicy(),
+            _StubPruningPolicy(),
+        ),
         input_stream=input_stream,
         output_stream=output_stream,
         evaluator=evaluator,

@@ -3,6 +3,8 @@ data/
 
 # Python
 __pycache__/
+*.pyc
+*.pyo
 *.py[cod]
 *$py.class
 *.so
@@ -25,12 +27,14 @@ wheels/
 
 # Virtual environments
 venv/
+.venv/
 ENV/
 env/
 
 # IDE
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 
