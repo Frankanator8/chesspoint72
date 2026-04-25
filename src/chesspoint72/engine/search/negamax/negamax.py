@@ -9,6 +9,8 @@ from chesspoint72.engine.core.search import Search
 from chesspoint72.engine.core.transposition import TranspositionTable
 from chesspoint72.engine.core.types import Move, NodeType
 from chesspoint72.engine.ordering.heuristics import HistoryTable, KillerMoveTable
+from chesspoint72.engine.pruning import algorithms as _pruning
+from chesspoint72.engine.pruning.config import PruningConfig
 
 if TYPE_CHECKING:
     from chesspoint72.engine.core.board import Board
@@ -41,8 +43,10 @@ class NegamaxSearch(Search):
         transposition_table: TranspositionTable,
         move_ordering_policy: MoveOrderingPolicy,
         pruning_policy: PruningPolicy,
+        pruning_config: PruningConfig | None = None,
     ) -> None:
         super().__init__(evaluator, transposition_table, move_ordering_policy, pruning_policy)
+        self.pruning_config = pruning_config
         # Mutable search state — reset at the start of every find_best_move call.
         self._board: Board
         self._start_time: float = 0.0
@@ -53,6 +57,9 @@ class NegamaxSearch(Search):
         # Move-ordering heuristic tables — both reset at the start of each search.
         self.killer_table: KillerMoveTable = KillerMoveTable()
         self.history_table: HistoryTable = HistoryTable()
+        # Late-bind search callbacks into the pruning policy (e.g. ForwardPruningPolicy).
+        if hasattr(pruning_policy, "attach_search"):
+            pruning_policy.attach_search(self)
 
     # ---------------------------------------------------------------------- #
     # Public interface (implements Search ABC)
@@ -166,6 +173,7 @@ class NegamaxSearch(Search):
         # ------------------------------------------------------------------ #
         # Forward pruning (Futility, Null-Move, etc.)
         # ------------------------------------------------------------------ #
+        in_check = board.is_king_in_check()
         static_eval = evaluate_position(board)
         prune_score = try_prune(board, depth, alpha, beta, static_eval)
         if prune_score is not None:
@@ -192,11 +200,33 @@ class NegamaxSearch(Search):
         # ------------------------------------------------------------------ #
         best_score = -_INF
         best_move: Move | None = None
+        cfg = self.pruning_config
 
-        for move in moves:
+        for move_index, move in enumerate(moves):
+            move_is_quiet = (not move.is_capture) and (move.promotion_piece is None)
+
+            # Futility pruning — depth==1, quiet moves only.
+            if cfg is not None and move_is_quiet and _pruning.is_futile(
+                depth, alpha, static_eval, in_check, move_is_quiet, cfg
+            ):
+                continue
+
             make_move(move)
             self._ply += 1
-            score = -search_node(-beta, -alpha, depth - 1)
+            gives_check = board.is_king_in_check()
+
+            # Late move reductions.
+            if cfg is not None and _pruning.should_apply_lmr(
+                depth, move_index, move_is_quiet, in_check, gives_check, cfg
+            ):
+                r = _pruning.lmr_reduction(depth, move_index)
+                reduced_depth = max(1, depth - 1 - r)
+                score = -search_node(-alpha - 1, -alpha, reduced_depth)
+                if score > alpha:
+                    score = -search_node(-beta, -alpha, depth - 1)
+            else:
+                score = -search_node(-beta, -alpha, depth - 1)
+
             self._ply -= 1
             unmake_move()
 
