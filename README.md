@@ -1,6 +1,6 @@
 # chesspoint72
 
-A lightweight chess renderer built with Pygame, with optional UCI engine play.
+AI-Orchestrated Chess Engine Tournament System
 
 ## Features
 
