@@ -1,3 +1,7 @@
 [console_scripts]
 chesspoint72 = chesspoint72.main:main
-chesspoint72-engine = chesspoint72.engine.main:main
+chesspoint72-battle = chesspoint72.benchmark.battle_royale:main
+chesspoint72-bench = chesspoint72.benchmark.engine_match:main
+chesspoint72-engine = chesspoint72.engine.factory:main
+chesspoint72-frank-v3 = chesspoint72.aiengines.frank.v3.engine:main
+chesspoint72-web = chesspoint72.web.server:main

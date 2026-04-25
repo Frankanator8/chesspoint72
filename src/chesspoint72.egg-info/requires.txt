@@ -2,6 +2,8 @@ pygame>=2.5.0
 python-chess>=1.999
 mcp>=1.0
 matplotlib>=3.8
+fastapi>=0.110
+uvicorn>=0.27
 
 [dev]
 pytest>=8.0.0
