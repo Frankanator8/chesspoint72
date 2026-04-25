@@ -4,6 +4,7 @@ import time
 from typing import TYPE_CHECKING
 
 from chesspoint72.engine.evaluator import Evaluator
+from chesspoint72.engine.heuristics import HistoryTable, KillerMoveTable
 from chesspoint72.engine.policies import MoveOrderingPolicy, PruningPolicy
 from chesspoint72.engine.search import Search
 from chesspoint72.engine.transposition import TranspositionTable
@@ -49,6 +50,9 @@ class NegamaxSearch(Search):
         # Tracks the number of half-moves made from the root position so that
         # mate scores can be adjusted per-ply (shorter mates score higher).
         self._ply: int = 0
+        # Move-ordering heuristic tables — both reset at the start of each search.
+        self.killer_table: KillerMoveTable = KillerMoveTable()
+        self.history_table: HistoryTable = HistoryTable()
 
     # ---------------------------------------------------------------------- #
     # Public interface (implements Search ABC)
@@ -72,6 +76,8 @@ class NegamaxSearch(Search):
         self._start_time = time.monotonic()
         self.nodes_evaluated = 0
         self._ply = 0
+        self.killer_table.clear()
+        self.history_table.clear()
 
         best_move: Move | None = None
 
@@ -113,50 +119,73 @@ class NegamaxSearch(Search):
         if self.nodes_evaluated & (_TIME_CHECK_INTERVAL - 1) == 0 and self._time_exceeded():
             raise _SearchAborted()
 
+        board = self._board
+        make_move = board.make_move
+        unmake_move = board.unmake_move
+        generate_legal_moves = board.generate_legal_moves
+        is_king_in_check = board.is_king_in_check
+        calculate_zobrist_hash = board.calculate_zobrist_hash
+
+        evaluate_position = self.evaluator_reference.evaluate_position
+        try_prune = self.pruning_policy.try_prune
+        order_moves = self.move_ordering_policy.order_moves
+
+        tt = self.transposition_table_reference
+        tt_retrieve = tt.retrieve_position
+        tt_store = tt.store_position
+
+        EXACT = NodeType.EXACT
+        LOWER = NodeType.LOWER_BOUND
+        UPPER = NodeType.UPPER_BOUND
+
+        search_node = self.search_node
+
         # ------------------------------------------------------------------ #
         # Transposition table probe
         # ------------------------------------------------------------------ #
-        zobrist = self._board.calculate_zobrist_hash()
-        tt_entry = self.transposition_table_reference.retrieve_position(zobrist)
+        zobrist = calculate_zobrist_hash()
+        tt_entry = tt_retrieve(zobrist)
         tt_best_move: Move | None = None
         original_alpha = alpha
 
         if tt_entry is not None and tt_entry.depth >= depth:
             tt_best_move = tt_entry.best_move
-            if tt_entry.node_type == NodeType.EXACT:
+            if tt_entry.node_type == EXACT:
                 return tt_entry.score
-            elif tt_entry.node_type == NodeType.LOWER_BOUND:
-                alpha = max(alpha, tt_entry.score)
+            elif tt_entry.node_type == LOWER:
+                s = tt_entry.score
+                if s > alpha:
+                    alpha = s
             else:  # UPPER_BOUND
-                beta = min(beta, tt_entry.score)
+                s = tt_entry.score
+                if s < beta:
+                    beta = s
             if alpha >= beta:
                 return tt_entry.score
 
         # ------------------------------------------------------------------ #
         # Forward pruning (Futility, Null-Move, etc.)
         # ------------------------------------------------------------------ #
-        static_eval = self.evaluator_reference.evaluate_position(self._board)
-        prune_score = self.pruning_policy.try_prune(
-            self._board, depth, alpha, beta, static_eval
-        )
+        static_eval = evaluate_position(board)
+        prune_score = try_prune(board, depth, alpha, beta, static_eval)
         if prune_score is not None:
             return prune_score
 
         # ------------------------------------------------------------------ #
         # Move generation and ordering
         # ------------------------------------------------------------------ #
-        moves = self._board.generate_legal_moves()
+        moves = generate_legal_moves()
 
         if not moves:
             # Terminal node: checkmate or stalemate.
-            if self._board.is_king_in_check():
+            if is_king_in_check():
                 # Being mated is the worst outcome; subtract ply so the engine
                 # seeks mates faster (shorter-ply mates produce larger values
                 # at the parent after negation).
                 return -(_MATE_SCORE - self._ply)
             return 0  # Stalemate
 
-        moves = self.move_ordering_policy.order_moves(moves, self._board, tt_best_move)
+        moves = order_moves(moves, board, tt_best_move)
 
         # ------------------------------------------------------------------ #
         # Main search loop (fail-soft alpha-beta)
@@ -165,11 +194,11 @@ class NegamaxSearch(Search):
         best_move: Move | None = None
 
         for move in moves:
-            self._board.make_move(move)
+            make_move(move)
             self._ply += 1
-            score = -self.search_node(-beta, -alpha, depth - 1)
+            score = -search_node(-beta, -alpha, depth - 1)
             self._ply -= 1
-            self._board.unmake_move()
+            unmake_move()
 
             if score > best_score:
                 best_score = score
@@ -179,21 +208,21 @@ class NegamaxSearch(Search):
                 alpha = score
 
             if alpha >= beta:
+                self.killer_table.update(move, depth)
+                self.update_history(move, depth)
                 break  # Beta cut-off
 
         # ------------------------------------------------------------------ #
         # Transposition table store
         # ------------------------------------------------------------------ #
         if best_score <= original_alpha:
-            node_type = NodeType.UPPER_BOUND  # Failed low — score is an upper bound
+            node_type = UPPER  # Failed low — score is an upper bound
         elif best_score >= beta:
-            node_type = NodeType.LOWER_BOUND  # Failed high — score is a lower bound
+            node_type = LOWER  # Failed high — score is a lower bound
         else:
-            node_type = NodeType.EXACT
+            node_type = EXACT
 
-        self.transposition_table_reference.store_position(
-            zobrist, depth, best_score, node_type, best_move
-        )
+        tt_store(zobrist, depth, best_score, node_type, best_move)
 
         return best_score
 
@@ -209,7 +238,15 @@ class NegamaxSearch(Search):
         """
         self.nodes_evaluated += 1
 
-        static_eval = self.evaluator_reference.evaluate_position(self._board)
+        board = self._board
+        make_move = board.make_move
+        unmake_move = board.unmake_move
+        generate_legal_moves = board.generate_legal_moves
+        evaluate_position = self.evaluator_reference.evaluate_position
+        order_moves = self.move_ordering_policy.order_moves
+        quiescence_search = self.quiescence_search
+
+        static_eval = evaluate_position(board)
 
         # Stand-pat pruning — the side to move can choose *not* to capture.
         if static_eval >= beta:
@@ -218,18 +255,18 @@ class NegamaxSearch(Search):
         if static_eval > alpha:
             alpha = static_eval
 
-        captures = [m for m in self._board.generate_legal_moves() if m.is_capture]
+        captures = [m for m in generate_legal_moves() if m.is_capture]
         if not captures:
             return alpha
 
-        captures = self.move_ordering_policy.order_moves(captures, self._board)
+        captures = order_moves(captures, board)
 
         for move in captures:
-            self._board.make_move(move)
+            make_move(move)
             self._ply += 1
-            score = -self.quiescence_search(-beta, -alpha)
+            score = -quiescence_search(-beta, -alpha)
             self._ply -= 1
-            self._board.unmake_move()
+            unmake_move()
 
             if score >= beta:
                 return beta
@@ -253,25 +290,39 @@ class NegamaxSearch(Search):
         beta = _INF
         best_move: Move | None = None
 
-        zobrist = self._board.calculate_zobrist_hash()
+        board = self._board
+        make_move = board.make_move
+        unmake_move = board.unmake_move
+        search_node = self.search_node
+        order_moves = self.move_ordering_policy.order_moves
+
+        zobrist = board.calculate_zobrist_hash()
         tt_entry = self.transposition_table_reference.retrieve_position(zobrist)
         tt_best_move = tt_entry.best_move if tt_entry is not None else None
 
-        moves = self._board.generate_legal_moves()
-        moves = self.move_ordering_policy.order_moves(moves, self._board, tt_best_move)
+        moves = board.generate_legal_moves()
+        moves = order_moves(moves, board, tt_best_move)
 
         for move in moves:
-            self._board.make_move(move)
+            make_move(move)
             self._ply += 1
-            score = -self.search_node(-beta, -alpha, depth - 1)
+            score = -search_node(-beta, -alpha, depth - 1)
             self._ply -= 1
-            self._board.unmake_move()
+            unmake_move()
 
             if score > alpha:
                 alpha = score
                 best_move = move
 
         return best_move
+
+    def update_history(self, move: Move, depth_remaining: int) -> None:
+        """Increment the history score for *move* by depth_remaining ** 2.
+
+        Uses the side-to-move color from the current board state so the caller
+        only needs to supply the move and the remaining depth.
+        """
+        self.history_table.update(self._board.side_to_move, move, depth_remaining)
 
     def _time_exceeded(self) -> bool:
         return time.monotonic() - self._start_time >= self._allotted_time

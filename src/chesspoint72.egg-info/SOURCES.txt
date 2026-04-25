@@ -16,6 +16,8 @@ src/chesspoint72/engine/__main__.py
 src/chesspoint72/engine/board.py
 src/chesspoint72/engine/evaluator.py
 src/chesspoint72/engine/main.py
+src/chesspoint72/engine/board.py
+src/chesspoint72/engine/evaluator.py
 src/chesspoint72/engine/search.py
 src/chesspoint72/engine/transposition.py
 src/chesspoint72/engine/types.py

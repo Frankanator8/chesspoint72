@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from chesspoint72.engine.types import CastlingRights, Color, Move
+from chesspoint72.engine.types import CastlingRights, Color, Move, PieceType
 
 
 class Board(ABC):
@@ -47,3 +47,16 @@ class Board(ABC):
 
     @abstractmethod
     def calculate_zobrist_hash(self) -> int: ...
+
+    def get_piece_at(self, square: int) -> tuple[PieceType, Color] | None:
+        """Return (PieceType, Color) for the piece on *square*, or None if empty.
+
+        Reads directly from the 12-entry bitboards list using the layout:
+            index = color.value * 6 + (piece_type.value - 1)
+        """
+        bit = 1 << square
+        for color in Color:
+            for piece_type in PieceType:
+                if self.bitboards[color.value * 6 + (piece_type.value - 1)] & bit:
+                    return piece_type, color
+        return None
