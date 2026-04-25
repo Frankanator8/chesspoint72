@@ -157,28 +157,28 @@ def _as_chess_board(board: Board | chess.Board) -> chess.Board:
     return chess.Board(fen)
 
 
-_HCE_MODULE_GROUPS: dict[str, tuple[str, ...]] = {
+HCE_MODULE_GROUPS: dict[str, tuple[str, ...]] = {
     "classic": (
         "material", "pst", "pawns", "king_safety", "mobility", "rooks", "bishops",
     ),
     "advanced": ("ewpm", "srcm", "idam", "otvm", "lmdm", "lscm", "clcm", "desm"),
 }
-_HCE_MODULE_GROUPS["all"] = _HCE_MODULE_GROUPS["classic"] + _HCE_MODULE_GROUPS["advanced"]
+HCE_MODULE_GROUPS["all"] = HCE_MODULE_GROUPS["classic"] + HCE_MODULE_GROUPS["advanced"]
 
 
 def _normalize_hce_modules(raw: str | None, available: set[str]) -> list[str]:
     if raw is None or not raw.strip():
-        return list(_HCE_MODULE_GROUPS["all"])
+        return list(HCE_MODULE_GROUPS["all"])
 
     selected: list[str] = []
     seen: set[str] = set()
     for token in (t.strip().lower() for t in raw.split(",")):
         if not token:
             continue
-        expanded = _HCE_MODULE_GROUPS.get(token, (token,))
+        expanded = HCE_MODULE_GROUPS.get(token, (token,))
         for name in expanded:
             if name not in available:
-                valid = ", ".join(sorted(available | set(_HCE_MODULE_GROUPS)))
+                valid = ", ".join(sorted(available | set(HCE_MODULE_GROUPS)))
                 raise ValueError(f"unknown hce module: {name!r}; valid values: {valid}")
             if name in seen:
                 continue
