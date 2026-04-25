@@ -82,7 +82,8 @@ class GameController:
             pygame.quit()
 
     def _handle_events(self) -> None:
-        assert self.renderer is not None
+        if self.renderer is None:
+            return
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
@@ -90,7 +91,8 @@ class GameController:
                 self._on_mouse_click(event.pos)
 
     def _on_mouse_click(self, pos: tuple[int, int]) -> None:
-        assert self.renderer is not None
+        if self.renderer is None:
+            return
         if not self._is_human_turn() or self.game_state.is_game_over():
             return
 
