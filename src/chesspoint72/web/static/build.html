@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chesspoint72 · Build Your Engine</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="/static/css/app.css" rel="stylesheet" />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+      <div class="container">
+        <a class="navbar-brand fw-semibold" href="/">Chesspoint72</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="nav">
+          <div class="navbar-nav ms-auto">
+            <a class="nav-link" data-nav href="/">Human vs Engine</a>
+            <a class="nav-link" data-nav href="/eve">Engine vs Engine</a>
+            <a class="nav-link" data-nav href="/tournament">Tournament</a>
+            <a class="nav-link" data-nav href="/build">Build Your Engine</a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container py-4">
+      <div class="row g-4 align-items-start">
+
+        <!-- Board column -->
+        <div class="col-12 col-lg-auto">
+          <div class="surface p-3">
+            <div class="d-flex align-items-center justify-content-between surface-header pb-2 mb-3">
+              <div>
+                <div class="fw-semibold">Build Your Engine</div>
+                <div class="small-muted">Assemble HCE modules, then play against your creation.</div>
+              </div>
+              <div class="status-pill" id="statusPill">
+                <span class="status-dot" data-status-dot></span>
+                <span data-status-text>Ready</span>
+              </div>
+            </div>
+
+            <div class="board-wrap">
+              <div id="board" class="board-grid surface" style="border-radius: 10px;"></div>
+              <div class="board-overlay" id="boardOverlay">
+                <div class="text-center small-muted px-3">
+                  <div style="font-size:2rem;margin-bottom:8px;">🧩</div>
+                  <div>Build your engine and click <strong style="color:var(--text-primary)">Build &amp; Play</strong> to start.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-3">
+              <button class="btn btn-outline-light btn-sm" id="copyFenBtn">Copy FEN</button>
+              <div class="small-muted ms-auto align-self-center" id="fenLabel"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls column -->
+        <div class="col-12 col-lg">
+          <div class="row g-4">
+
+            <!-- Engine builder panel -->
+            <div class="col-12">
+              <div class="surface p-3">
+                <div class="d-flex align-items-center justify-content-between surface-header pb-2 mb-3">
+                  <div>
+                    <div class="fw-semibold">Engine builder</div>
+                    <div class="small-muted">Drag modules into your engine, or use a preset.</div>
+                  </div>
+                  <div class="d-flex gap-2">
+                    <button class="btn btn-outline-light btn-sm" id="presetClassicBtn" type="button">Classic</button>
+                    <button class="btn btn-outline-light btn-sm" id="presetAdvancedBtn" type="button">Advanced</button>
+                    <button class="btn btn-outline-light btn-sm" id="presetAllBtn" type="button">All</button>
+                    <button class="btn btn-outline-danger btn-sm" id="presetClearBtn" type="button">Clear</button>
+                  </div>
+                </div>
+
+                <div class="row g-3">
+                  <div class="col-12">
+                    <div class="small-muted fw-semibold mb-2">Available modules</div>
+                    <div id="modulePaletteClassic" class="module-palette mb-1">
+                      <span class="small-muted" style="font-size:0.78rem">Classic</span>
+                    </div>
+                    <div id="modulePaletteAdvanced" class="module-palette mt-2">
+                      <span class="small-muted" style="font-size:0.78rem">Advanced</span>
+                    </div>
+                  </div>
+
+                  <div class="col-12">
+                    <div class="small-muted fw-semibold mb-2">Your engine</div>
+                    <div id="engineDropZone" class="engine-drop-zone empty"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Game controls panel -->
+            <div class="col-12">
+              <div class="surface p-3">
+                <div class="surface-header pb-2 mb-3">
+                  <div class="fw-semibold">Game controls</div>
+                </div>
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label">Human color</label>
+                    <div class="btn-group w-100" role="group">
+                      <input type="radio" class="btn-check" name="humanColor" id="hcWhite" autocomplete="off" checked>
+                      <label class="btn btn-outline-light" for="hcWhite">White</label>
+                      <input type="radio" class="btn-check" name="humanColor" id="hcBlack" autocomplete="off">
+                      <label class="btn btn-outline-light" for="hcBlack">Black</label>
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label">Depth <span class="small-muted" id="depthLabel">(4)</span></label>
+                    <input class="form-range" id="depthRange" type="range" min="1" max="6" value="4" />
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label">Think time <span class="small-muted" id="timeLabel">(0.5s)</span></label>
+                    <input class="form-range" id="timeRange" type="range" min="0.1" max="2" step="0.1" value="0.5" />
+                  </div>
+
+                  <div class="col-12 d-flex gap-2">
+                    <button class="btn btn-accent w-100" id="startBtn" disabled>Build &amp; Play</button>
+                    <button class="btn btn-outline-danger w-100" id="resignBtn" disabled>Resign</button>
+                  </div>
+
+                  <div class="col-12">
+                    <div class="surface p-3">
+                      <div class="fw-semibold mb-2">Status</div>
+                      <div class="small-muted mb-2" id="statusLine">Add at least one module to begin.</div>
+                      <div class="small-muted" id="thinkingLine"></div>
+                    </div>
+                  </div>
+
+                  <div class="col-12">
+                    <div class="surface p-3">
+                      <div class="fw-semibold mb-2">Move history</div>
+                      <div class="move-list" id="moveList"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- Promotion modal -->
+    <div class="modal fade" id="promoModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content surface">
+          <div class="modal-header surface-header">
+            <h5 class="modal-title">Promote to</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="d-flex gap-2">
+              <button class="btn btn-outline-light w-100" data-promo="q" type="button">Queen</button>
+              <button class="btn btn-outline-light w-100" data-promo="r" type="button">Rook</button>
+              <button class="btn btn-outline-light w-100" data-promo="b" type="button">Bishop</button>
+              <button class="btn btn-outline-light w-100" data-promo="n" type="button">Knight</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+      import { setActiveNav } from "/static/js/shared.js";
+      setActiveNav(window.location.pathname);
+    </script>
+    <script type="module" src="/static/js/build.js"></script>
+  </body>
+</html>

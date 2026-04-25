@@ -151,3 +151,117 @@ body {
   color: rgba(230, 237, 243, 0.65);
 }
 
+/* ── Build Your Engine ─────────────────────────────────────── */
+
+.module-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.module-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(230, 237, 243, 0.20);
+  background: rgba(230, 237, 243, 0.05);
+  cursor: grab;
+  user-select: none;
+  font-size: 0.85rem;
+  transition: border-color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.module-chip:hover {
+  border-color: rgba(230, 237, 243, 0.45);
+  background: rgba(230, 237, 243, 0.09);
+}
+
+.module-chip.dragging {
+  opacity: 0.35;
+  cursor: grabbing;
+}
+
+.engine-drop-zone {
+  min-height: 68px;
+  border: 2px dashed rgba(230, 237, 243, 0.18);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+  align-content: flex-start;
+  transition: border-color 0.15s, background 0.15s;
+  position: relative;
+}
+
+.engine-drop-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(29, 111, 165, 0.08);
+}
+
+.engine-drop-zone.empty::after {
+  content: "Drop modules here…";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(230, 237, 243, 0.30);
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.drop-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px 4px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(29, 111, 165, 0.55);
+  background: rgba(29, 111, 165, 0.15);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.drop-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(230, 237, 243, 0.12);
+  color: rgba(230, 237, 243, 0.75);
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.12s;
+}
+
+.drop-chip-remove:hover {
+  background: rgba(248, 81, 73, 0.35);
+  color: #fff;
+}
+
+.board-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(13, 17, 23, 0.65);
+  border-radius: 10px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.board-wrap {
+  position: relative;
+}
+
