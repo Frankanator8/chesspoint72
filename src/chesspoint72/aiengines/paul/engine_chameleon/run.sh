@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-exec python -m chesspoint72.aiengines.paul.engine_chameleon.engine_chameleon
+exec python3 -m chesspoint72.aiengines.paul.engine_chameleon.engine_chameleon

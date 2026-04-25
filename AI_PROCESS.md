@@ -73,3 +73,20 @@
 - Standardized guidance on `python3 -m chesspoint72.aiengines.frank.v3` and installed console scripts (`chesspoint72-frank-v3`, `chesspoint72-engine`) for tooling that needs executable paths.
 
 **Token efficiency (estimated):** ~1k tokens for targeted grep + doc patch; no engine-logic churn.
+
+## 2026-04-25 - `main.py` GameConfig compatibility for evaluator-arg TypeError
+
+**Prompt shape:** targeted bugfix brief — user reports `TypeError: GameConfig.__init__() got an unexpected keyword argument 'evaluator'` when launching UI; patch CLI-to-config wiring for new/legacy config compatibility without engine refactors.
+
+**Approach:**
+- Added a compatibility seam in `src/chesspoint72/main.py`:
+  - `_game_config_field_names()` discovers accepted constructor kwargs from dataclass fields (or signature fallback).
+  - `_build_game_config(args)` maps CLI args once, then filters unsupported keys before `GameConfig(...)` construction.
+- Replaced direct inline `GameConfig(...)` construction in `main()` with `_build_game_config(args)` to prevent field-drift crashes.
+- Added regression tests in `tests/test_main.py`:
+  - validates full-field mapping for current `GameConfig`.
+  - validates legacy compatibility by monkeypatching a config class without `evaluator/hce_modules/depth` and confirming construction succeeds.
+- Ran focused verification: `pytest -q tests/test_main.py tests/test_controller.py` (5 passed).
+
+**Token efficiency (estimated):** ~1.3k tokens for one-pass diagnose + compatibility patch + focused tests; avoids expensive environment-debug loops (editable install/version skew) by making argument binding resilient in code.
+
