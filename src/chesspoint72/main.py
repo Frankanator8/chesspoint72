@@ -39,6 +39,18 @@ def parse_args() -> argparse.Namespace:
         default=96,
         help="Square size in pixels",
     )
+    parser.add_argument(
+        "--evaluator",
+        choices=["stub", "hce", "material", "nnue"],
+        default=None,
+        help="Built-in evaluator to use as opponent (mutually exclusive with --engine)",
+    )
+    parser.add_argument(
+        "--depth",
+        type=int,
+        default=4,
+        help="Search depth for the built-in engine (default: 4)",
+    )
     return parser.parse_args()
 
 
@@ -46,6 +58,8 @@ def main() -> None:
     args = parse_args()
     config = GameConfig(
         engine_path=args.engine,
+        evaluator=args.evaluator,
+        depth=args.depth,
         engine_color=chess.WHITE if args.engine_color == "white" else chess.BLACK,
         think_time=args.movetime,
         square_size=args.square_size,
