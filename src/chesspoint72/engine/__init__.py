@@ -22,11 +22,16 @@ from chesspoint72.engine.core import (
     TranspositionTable,
     square_to_algebraic,
 )
-from chesspoint72.engine.evaluators.nnue import (
-    NnueEvaluator,
-    NnueNetwork,
-    fen_to_tensor,
-)
+try:  # NNUE pulls in torch; skip the re-export when torch isn't installed.
+    from chesspoint72.engine.evaluators.nnue import (
+        NnueEvaluator,
+        NnueNetwork,
+        fen_to_tensor,
+    )
+except ImportError:
+    NnueEvaluator = None  # type: ignore[assignment]
+    NnueNetwork = None  # type: ignore[assignment]
+    fen_to_tensor = None  # type: ignore[assignment]
 from chesspoint72.engine.ordering import (
     HistoryTable,
     KillerMoveTable,

@@ -4,6 +4,11 @@ Each function is a thin algorithmic core with no I/O or logging.
 The module is engine-agnostic: it duck-types its board and search
 arguments rather than requiring specific base classes.
 """
+# @capability: pruning
+# @capability: null_move_pruning
+# @capability: razoring
+# @capability: futility_pruning
+# @capability: lmr
 from __future__ import annotations
 
 import math

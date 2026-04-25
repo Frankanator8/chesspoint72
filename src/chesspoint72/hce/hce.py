@@ -7,6 +7,8 @@ evaluate(board) -> int
 explain(board)  -> dict[str, int]
     Per-feature tapered scores for debugging.
 """
+# @capability: evaluator
+# @capability: hce
 from __future__ import annotations
 
 import chess

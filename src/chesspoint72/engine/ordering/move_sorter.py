@@ -15,6 +15,9 @@ Typical search usage (pick-best, not full sort):
         if alpha >= beta:
             break   # paid O(k·n) not O(n log n); k is almost always 1-3
 """
+# @capability: move_ordering
+# @capability: killers
+# @capability: history
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
