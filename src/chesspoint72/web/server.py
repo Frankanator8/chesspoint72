@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from chesspoint72.web.api.engines import router as engines_router
 from chesspoint72.web.api.hvse import router as hvse_router
 from chesspoint72.web.api.eve import router as eve_router
+from chesspoint72.web.api.tournament import router as tournament_router
 
 
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -22,6 +23,7 @@ def create_app() -> FastAPI:
     app.include_router(engines_router, prefix="/api")
     app.include_router(hvse_router, prefix="/api")
     app.include_router(eve_router, prefix="/api")
+    app.include_router(tournament_router, prefix="/api")
 
     # Static
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
