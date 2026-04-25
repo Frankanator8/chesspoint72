@@ -13,8 +13,8 @@ from __future__ import annotations
 import chess
 import chess.polyglot  # explicit — `chess` does not auto-import submodules
 
-from chesspoint72.engine.board import Board
-from chesspoint72.engine.types import CastlingRights, Color, Move, PieceType
+from chesspoint72.engine.core.board import Board
+from chesspoint72.engine.core.types import CastlingRights, Color, Move, PieceType
 
 
 _PROMO_TO_PIECE_TYPE = {

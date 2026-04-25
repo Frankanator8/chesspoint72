@@ -1,5 +1,11 @@
 # AI Orchestration & Prompt Ledger
 
+## 2026-04-24 - AGENTS.md generation
+- Task prompt: Analyze repository architecture/workflows/conventions/integration points and generate root `AGENTS.md` for AI coding agents.
+- Discovery prompt used: "Create a concise analysis plan for generating AGENTS.md for this chesspoint72 repository..."
+- Files consulted: `README.md`, `CLAUDE.md`, `pyproject.toml`, engine/UI/modules, MCP orchestrator, and test suite.
+- Token efficiency (estimated): ~2.1k tokens consumed to synthesize repository guidance vs. repeated per-task rediscovery overhead; expected net savings on subsequent agent tasks due to centralized instructions.
+
 ## 2026-04-24 — Forward Pruning Module (Phases 1–5, separate folder)
 
 **Prompt shape:** five-phase brief — Examine → Plan → Implement (NMP, Razoring, Futility, LMR, Zugzwang) → Integrate → Correctness tests — plus three required output artifacts. Constrained to a separate folder; existing `src/` tree must remain untouched.

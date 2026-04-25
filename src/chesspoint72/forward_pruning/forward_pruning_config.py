@@ -5,9 +5,9 @@ helpers for disabling individual techniques. Contains *no* pruning logic —
 the search/pruning module reads these values, it does not depend on this
 file's behaviour.
 
-Conforms to ``forward_pruning/INTERFACE_CONTRACT.md``. Field names and
-types must match the contract exactly; renaming or retyping anything here
-silently breaks ``forward_pruning/pruning.py``.
+Conforms to ``chesspoint72/forward_pruning/INTERFACE_CONTRACT.md``. Field
+names and types must match the contract exactly; renaming or retyping
+anything here silently breaks ``chesspoint72/forward_pruning/pruning.py``.
 """
 from __future__ import annotations
 

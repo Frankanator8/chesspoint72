@@ -9,14 +9,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from chesspoint72.engine.board import Board
-from chesspoint72.engine.evaluator import Evaluator
-from chesspoint72.engine.policies import MoveOrderingPolicy, PruningPolicy
-from chesspoint72.engine.types import Move
+from chesspoint72.engine.core.board import Board
+from chesspoint72.engine.core.evaluator import Evaluator
+from chesspoint72.engine.core.policies import MoveOrderingPolicy, PruningPolicy
+from chesspoint72.engine.core.types import Move
 
 import chess
 
-from forward_pruning.python_chess_board import PythonChessBoard
+from chesspoint72.forward_pruning.python_chess_board import PythonChessBoard
 
 
 @dataclass
