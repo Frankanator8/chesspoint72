@@ -6,69 +6,37 @@ implementation = registering it here; no file owned by another teammate is
 touched.
 
 Run:
-    python -m chesspoint72.engine                       # default stub engine
-    python -m chesspoint72.engine --evaluator nnue       # NNUE evaluator
+    python -m chesspoint72.engine                                # stub eval
+    python -m chesspoint72.engine --evaluator nnue                # NNUE
+    python -m chesspoint72.engine --evaluator material --depth 5  # ID to depth 5
 """
 from __future__ import annotations
 
 import os
-import random
 import sys
+import time
 from typing import Callable, Iterable, TextIO
 
 import chess
 
+from chesspoint72.engine.boards import PyChessBoard
 from chesspoint72.engine.core.board import Board
 from chesspoint72.engine.core.evaluator import Evaluator
 from chesspoint72.engine.core.policies import MoveOrderingPolicy, PruningPolicy
 from chesspoint72.engine.core.search import Search
 from chesspoint72.engine.core.transposition import TranspositionTable
 from chesspoint72.engine.core.types import Move
+from chesspoint72.engine.search.negamax import NegamaxSearch
 from chesspoint72.engine.uci.controller import UciController
 
 
 # --------------------------------------------------------------------------- #
-# Stub concretions to satisfy the abstract interfaces. They are never invoked
-# by ShimUciController — the shim owns its own python-chess board and random
-# move policy. Replace these with real implementations as they land.
+# Minimal stubs — only those still wired into a live code path.
+#
+# ``_StubEvaluator`` serves as the fallback in the evaluator registry for the
+# "stub" / "hce" keys. The two stub policies are passed to NegamaxSearch until
+# the move-ordering and forward-pruning teammates ship real implementations.
 # --------------------------------------------------------------------------- #
-
-
-class _StubBoard(Board):
-    def set_position_from_fen(self, fen_string: str) -> None: ...
-    def get_current_fen(self) -> str:
-        return chess.STARTING_FEN
-    def generate_legal_moves(self) -> list[Move]:
-        return []
-    def make_move(self, move: Move) -> None: ...
-    def unmake_move(self) -> None: ...
-    def is_king_in_check(self) -> bool:
-        return False
-    def calculate_zobrist_hash(self) -> int:
-        return 0
-
-
-class _PyChessBoardAdapter(Board):
-    """Adapter exposing a python-chess board via the engine's Board interface."""
-
-    def __init__(self, py_board: chess.Board) -> None:
-        super().__init__()
-        self._py_board = py_board
-
-    def set_position_from_fen(self, fen_string: str) -> None:
-        self._py_board.set_fen(fen_string)
-
-    def get_current_fen(self) -> str:
-        return self._py_board.fen()
-
-    def generate_legal_moves(self) -> list[Move]:
-        return []
-    def make_move(self, move: Move) -> None: ...
-    def unmake_move(self) -> None: ...
-    def is_king_in_check(self) -> bool:
-        return self._py_board.is_check()
-    def calculate_zobrist_hash(self) -> int:
-        return 0
 
 
 class _StubEvaluator(Evaluator):
@@ -98,18 +66,8 @@ class _StubPruningPolicy(PruningPolicy):
         return None
 
 
-class _StubSearch(Search):
-    def find_best_move(self, board: Board, max_depth: int, allotted_time: float) -> Move:
-        raise NotImplementedError
-    def search_node(self, alpha: int, beta: int, depth: int) -> int:
-        return 0
-    def quiescence_search(self, alpha: int, beta: int) -> int:
-        return 0
-
-
 # --------------------------------------------------------------------------- #
-# Factories — one dispatch table per concern. Add a new row to register an
-# implementation; do not modify other rows.
+# Evaluator registry — one row per implementation.
 # --------------------------------------------------------------------------- #
 
 
@@ -119,10 +77,31 @@ def _build_nnue() -> Evaluator:
     return NnueEvaluator(weights) if weights else NnueEvaluator()
 
 
+class _MaterialEvaluator(Evaluator):
+    """Adapter exposing chesspoint72.hce.material as an Evaluator.
+
+    Returns centipawns from White's POV.
+    """
+
+    def evaluate_position(self, board: Board) -> int:
+        from chesspoint72.hce.material import material_score
+        if isinstance(board, chess.Board):
+            return int(material_score(board))
+        # PyChessBoard exposes the underlying chess.Board via .py_board for
+        # zero-copy access; everything else falls through to FEN.
+        py_board = getattr(board, "py_board", None)
+        if isinstance(py_board, chess.Board):
+            return int(material_score(py_board))
+        get_fen = getattr(board, "get_current_fen", None)
+        fen = get_fen() if callable(get_fen) else board.fen()
+        return int(material_score(chess.Board(fen)))
+
+
 _EVALUATOR_REGISTRY: dict[str, Callable[[], Evaluator]] = {
-    "stub": lambda: _StubEvaluator(),
-    "hce":  lambda: _StubEvaluator(),  # placeholder until HCE lands
-    "nnue": _build_nnue,
+    "stub":     lambda: _StubEvaluator(),
+    "hce":      lambda: _StubEvaluator(),  # placeholder until full HCE lands
+    "material": lambda: _MaterialEvaluator(),
+    "nnue":     _build_nnue,
 }
 
 
@@ -130,8 +109,8 @@ def build_evaluator(name: str | None = None) -> Evaluator:
     """Select an Evaluator implementation by name.
 
     Falls back to ``CHESSPOINT72_EVALUATOR`` when *name* is None, then to
-    ``"stub"``. The Battle Royale (SPRT) runner uses the env var to flip
-    evaluators without rebuilding.
+    ``"stub"``. The Battle Royale runner uses the env var to flip evaluators
+    without rebuilding.
     """
     chosen = (name or os.environ.get("CHESSPOINT72_EVALUATOR", "stub")).strip().lower() or "stub"
     if chosen not in _EVALUATOR_REGISTRY:
@@ -140,33 +119,47 @@ def build_evaluator(name: str | None = None) -> Evaluator:
 
 
 # --------------------------------------------------------------------------- #
-# Concrete controller: parses UCI position/go against a python-chess board,
-# and (when a real evaluator is wired) replies with a 1-ply greedy best move.
-# Otherwise picks a random legal move — sufficient for SPRT plumbing while
-# the real search lands.
+# StandardUciController — drives a real Search over a real PyChessBoard.
+#
+# The per-depth ``info`` lines are produced by the *controller*, which calls
+# ``search.find_best_move(board, depth=d, allotted_time=remaining)`` for d in
+# 1..max_depth. NegamaxSearch's own internal IID still runs inside each call
+# (that's how it computes a stable depth-d result), but the controller's outer
+# loop is what surfaces per-depth output without needing to modify the Search
+# implementation. The wasted work is bounded — sum_{d=1..N} d = N(N+1)/2 — and
+# is acceptable for a tournament wrapper. A future Search can expose a hook to
+# eliminate the duplication.
 # --------------------------------------------------------------------------- #
 
 
-class ShimUciController(UciController):
-    engine_name = "Chesspoint72 Shim"
+class StandardUciController(UciController):
+    """Real UCI controller backed by ``PyChessBoard`` + a ``Search`` impl."""
+
+    engine_name = "Chesspoint72"
     engine_author = "Chesspoint72"
 
     def __init__(
         self,
-        board: Board,
+        board: PyChessBoard,
         search: Search,
         input_stream: Iterable[str] | None = None,
         output_stream: TextIO | None = None,
-        rng: random.Random | None = None,
         evaluator: Evaluator | None = None,
+        default_depth: int = 4,
+        default_time: float = 5.0,
     ) -> None:
         super().__init__(board, search, input_stream, output_stream)
-        self._board = chess.Board()
-        self._rng = rng or random.Random()
+        self._board: PyChessBoard = board
         self._evaluator = evaluator
+        self._default_depth = default_depth
+        self._default_time = default_time
+
+    # ------------------------------------------------------------------ #
+    # UCI command handlers
+    # ------------------------------------------------------------------ #
 
     def handle_new_game(self) -> None:
-        self._board = chess.Board()
+        self._board.set_position_from_fen(chess.STARTING_FEN)
 
     def handle_position_command(self, input_string: str) -> None:
         tokens = input_string.split()
@@ -174,7 +167,7 @@ class ShimUciController(UciController):
             return
         moves: list[str] = []
         if tokens[0] == "startpos":
-            self._board = chess.Board()
+            self._board.set_position_from_fen(chess.STARTING_FEN)
             if "moves" in tokens:
                 moves = tokens[tokens.index("moves") + 1:]
         elif tokens[0] == "fen":
@@ -182,7 +175,7 @@ class ShimUciController(UciController):
                 return
             fen = " ".join(tokens[1:7])
             try:
-                self._board = chess.Board(fen)
+                self._board.set_position_from_fen(fen)
             except ValueError:
                 return
             if "moves" in tokens:
@@ -196,33 +189,92 @@ class ShimUciController(UciController):
                 break
 
     def handle_go_command(self, input_string: str) -> None:
-        if self._board.is_game_over(claim_draw=True):
+        if self._board.is_game_over():
             self._writeln("bestmove 0000")
             return
-        legal = list(self._board.legal_moves)
+
+        max_depth, allotted = self._parse_go(input_string)
+        legal = self._board.generate_legal_moves()
         if not legal:
             self._writeln("bestmove 0000")
             return
 
-        if self._evaluator is not None and not isinstance(self._evaluator, _StubEvaluator):
-            white_to_move = self._board.turn == chess.WHITE
-            best_move = legal[0]
-            best_score = -10**9
-            for mv in legal:
-                self._board.push(mv)
-                cp = self._evaluator.evaluate_position(_PyChessBoardAdapter(self._board))
-                self._board.pop()
-                signed = cp if white_to_move else -cp
-                if signed > best_score:
-                    best_score = signed
-                    best_move = mv
-            move = best_move
-            score_cp = best_score if white_to_move else -best_score
-            self.send_info_string({"depth": 1, "score cp": int(score_cp), "nodes": len(legal), "pv": move.uci()})
-        else:
-            move = self._rng.choice(legal)
-            self.send_info_string({"depth": 1, "score cp": 0, "nodes": len(legal), "pv": move.uci()})
-        self._writeln(f"bestmove {move.uci()}")
+        # Per-depth iterative deepening driven from the controller, so each
+        # completed depth produces its own UCI ``info`` line.
+        deadline = time.monotonic() + allotted
+        best_move = legal[0]
+        for depth in range(1, max_depth + 1):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0.0:
+                break
+            t0 = time.monotonic()
+            try:
+                move = self.search_engine_reference.find_best_move(
+                    self._board, depth, remaining,
+                )
+            except Exception:
+                break
+            elapsed = time.monotonic() - t0
+            nodes = getattr(self.search_engine_reference, "nodes_evaluated", 0)
+            time_ms = max(int(elapsed * 1000), 1)
+            nps = int(nodes / max(elapsed, 1e-6))
+            if move is not None:
+                best_move = move
+            self.send_info_string({
+                "depth": depth,
+                "nodes": nodes,
+                "nps": nps,
+                "time": time_ms,
+                "pv": best_move.to_uci_string(),
+            })
+
+        self._writeln(f"bestmove {best_move.to_uci_string()}")
+
+    # ------------------------------------------------------------------ #
+    # Helpers
+    # ------------------------------------------------------------------ #
+
+    def _parse_go(self, input_string: str) -> tuple[int, float]:
+        """Parse depth/movetime/clock fields from a UCI ``go`` line."""
+        tokens = input_string.split()
+        max_depth = self._default_depth
+        allotted = self._default_time
+        wtime = btime = winc = binc = movetime = -1.0
+        i = 0
+        while i < len(tokens):
+            t = tokens[i]
+            if t == "depth" and i + 1 < len(tokens):
+                try:
+                    max_depth = max(int(tokens[i + 1]), 1)
+                except ValueError:
+                    pass
+                i += 2
+            elif t == "movetime" and i + 1 < len(tokens):
+                try:
+                    movetime = float(tokens[i + 1]) / 1000.0
+                except ValueError:
+                    pass
+                i += 2
+            elif t in ("wtime", "btime", "winc", "binc") and i + 1 < len(tokens):
+                try:
+                    val = float(tokens[i + 1]) / 1000.0
+                except ValueError:
+                    val = 0.0
+                if   t == "wtime": wtime = val
+                elif t == "btime": btime = val
+                elif t == "winc":  winc = val
+                else:              binc = val
+                i += 2
+            else:
+                i += 1
+        if movetime > 0:
+            allotted = movetime
+        elif wtime >= 0 and btime >= 0:
+            our_time = wtime if self._board.side_to_move.value == 0 else btime
+            our_inc  = winc  if self._board.side_to_move.value == 0 else binc
+            # Conservative: spend ~1/30 of remaining clock plus the increment.
+            allotted = max(our_time / 30.0 + our_inc, 0.05)
+        return max_depth, allotted
 
 
 # --------------------------------------------------------------------------- #
@@ -234,31 +286,60 @@ def build_controller(
     input_stream: Iterable[str] | None = None,
     output_stream: TextIO | None = None,
     evaluator_name: str | None = None,
-) -> ShimUciController:
+    default_depth: int = 4,
+    default_time: float = 5.0,
+) -> StandardUciController:
     evaluator = build_evaluator(evaluator_name)
-    return ShimUciController(
-        board=_StubBoard(),
-        search=_StubSearch(
-            evaluator,
-            TranspositionTable(),
-            _StubMoveOrderingPolicy(),
-            _StubPruningPolicy(),
-        ),
+    board = PyChessBoard()
+    search = NegamaxSearch(
+        evaluator,
+        TranspositionTable(),
+        _StubMoveOrderingPolicy(),
+        _StubPruningPolicy(),
+    )
+    return StandardUciController(
+        board=board,
+        search=search,
         input_stream=input_stream,
         output_stream=output_stream,
         evaluator=evaluator,
+        default_depth=default_depth,
+        default_time=default_time,
     )
 
 
-def main() -> int:
+def _parse_cli(argv: list[str]) -> tuple[str | None, int, float]:
+    """Parse engine CLI flags. Returns (evaluator_name, default_depth, default_time)."""
     evaluator_name: str | None = None
-    argv = sys.argv[1:]
-    for i, arg in enumerate(argv):
-        if arg == "--evaluator" and i + 1 < len(argv):
-            evaluator_name = argv[i + 1]
-        elif arg.startswith("--evaluator="):
-            evaluator_name = arg.split("=", 1)[1]
-    controller = build_controller(evaluator_name=evaluator_name)
+    default_depth = 4
+    default_time = 5.0
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--evaluator" and i + 1 < len(argv):
+            evaluator_name = argv[i + 1]; i += 2
+        elif a.startswith("--evaluator="):
+            evaluator_name = a.split("=", 1)[1]; i += 1
+        elif a == "--depth" and i + 1 < len(argv):
+            default_depth = max(int(argv[i + 1]), 1); i += 2
+        elif a.startswith("--depth="):
+            default_depth = max(int(a.split("=", 1)[1]), 1); i += 1
+        elif a == "--time" and i + 1 < len(argv):
+            default_time = max(float(argv[i + 1]), 0.05); i += 2
+        elif a.startswith("--time="):
+            default_time = max(float(a.split("=", 1)[1]), 0.05); i += 1
+        else:
+            i += 1
+    return evaluator_name, default_depth, default_time
+
+
+def main() -> int:
+    evaluator_name, default_depth, default_time = _parse_cli(sys.argv[1:])
+    controller = build_controller(
+        evaluator_name=evaluator_name,
+        default_depth=default_depth,
+        default_time=default_time,
+    )
     try:
         controller.start_listening_loop()
     except KeyboardInterrupt:

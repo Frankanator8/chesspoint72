@@ -67,7 +67,8 @@ class NnueEvaluator(Evaluator):
         self._model.eval()
 
     def evaluate_position(self, board: Board) -> int:
-        fen = board.get_current_fen()
+        get_fen = getattr(board, "get_current_fen", None)
+        fen = get_fen() if callable(get_fen) else board.fen()
         x = fen_to_tensor(fen).unsqueeze(0).to(self._device)
         with torch.no_grad():
             score = self._model(x).item()
