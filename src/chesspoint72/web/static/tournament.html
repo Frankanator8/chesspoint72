@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chesspoint72 · Tournament</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="/static/css/app.css" rel="stylesheet" />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+      <div class="container">
+        <a class="navbar-brand fw-semibold" href="/">Chesspoint72</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="nav">
+          <div class="navbar-nav ms-auto">
+            <a class="nav-link" data-nav href="/">Human vs Engine</a>
+            <a class="nav-link" data-nav href="/eve">Engine vs Engine</a>
+            <a class="nav-link" data-nav href="/tournament">Tournament</a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container py-4">
+      <div class="surface p-3 mb-4">
+        <div class="d-flex align-items-center justify-content-between surface-header pb-2 mb-3">
+          <div>
+            <div class="fw-semibold">Tournament</div>
+            <div class="small-muted">Single-elimination bracket for demos.</div>
+          </div>
+          <div class="status-pill" id="statusPill">
+            <span class="status-dot" data-status-dot></span>
+            <span data-status-text>Ready</span>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12 col-lg-6">
+            <div class="surface p-3 h-100">
+              <div class="fw-semibold mb-1">Setup</div>
+              <div class="small-muted">Wiring comes next (Page 3).</div>
+              <div class="mt-3">
+                <button class="btn btn-accent" disabled>Run tournament</button>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-lg-6">
+            <div class="surface p-3 h-100">
+              <div class="fw-semibold mb-1">Live match</div>
+              <div class="small-muted">Board + move list shown while matches run.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="surface p-3">
+        <div class="surface-header pb-2 mb-3">
+          <div class="fw-semibold">Bracket</div>
+          <div class="small-muted">SVG bracket renders here once wired.</div>
+        </div>
+        <div class="d-flex align-items-center justify-content-center" style="min-height: 240px;">
+          <div class="small-muted">Static shell</div>
+        </div>
+      </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+      import { setActiveNav } from "/static/js/shared.js";
+      setActiveNav(window.location.pathname);
+    </script>
+  </body>
+</html>
+

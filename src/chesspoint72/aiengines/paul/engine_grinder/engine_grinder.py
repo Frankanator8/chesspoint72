@@ -27,7 +27,7 @@ from chesspoint72.engine.search.negamax import NegamaxSearch
 
 from .._common import WEIGHTS_DIR, PassthroughOrdering
 
-_WEIGHTS = WEIGHTS_DIR / "nnue_tank_final.pt"
+_WEIGHTS = WEIGHTS_DIR / "real_nnue_epoch_2.pt"
 _INF = 10_000_000
 
 

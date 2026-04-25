@@ -12,11 +12,15 @@
       "Bash(python *)",
       "Bash(git restore *)",
       "Bash(git pull *)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(xxd src/chesspoint72/aiengines/paul/engine_chameleon/run.sh)",
+      "Bash(chmod +x *)",
+      "Bash(git -C /c/Users/pmi/PROJECTS/Projects/chesspoint72 add -f .claude/settings.local.json)",
+      "Bash(git rm *)"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "chesspoint72-orchestrator"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }

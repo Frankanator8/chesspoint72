@@ -8,6 +8,8 @@ Requires-Dist: pygame>=2.5.0
 Requires-Dist: python-chess>=1.999
 Requires-Dist: mcp>=1.0
 Requires-Dist: matplotlib>=3.8
+Requires-Dist: fastapi>=0.110
+Requires-Dist: uvicorn>=0.27
 Provides-Extra: dev
 Requires-Dist: pytest>=8.0.0; extra == "dev"
 
@@ -43,6 +45,16 @@ Human vs UCI engine (engine plays black):
 ```bash
 python -m chesspoint72.main --engine /opt/homebrew/bin/stockfish --engine-color black --movetime 0.2
 ```
+
+Human vs built-in HCE engine with selected modules:
+
+```bash
+python -m chesspoint72.main --evaluator hce --hce-modules classic,ewpm,desm --engine-color black --depth 4 --movetime 0.2
+```
+
+`--hce-modules` accepts comma-separated module names and aliases:
+- aliases: `classic`, `advanced`, `all`
+- modules: `material,pst,pawns,king_safety,mobility,rooks,bishops,ewpm,srcm,idam,otvm,lmdm,lscm,clcm,desm`
 
 Engine from custom FEN:
 

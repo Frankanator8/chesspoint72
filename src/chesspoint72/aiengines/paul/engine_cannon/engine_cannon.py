@@ -49,7 +49,7 @@ from chesspoint72.engine.search.negamax.negamax import _SearchAborted
 
 from .._common import WEIGHTS_DIR
 
-_WEIGHTS = WEIGHTS_DIR / "nnue_tactician_final.pt"
+_WEIGHTS = WEIGHTS_DIR / "real_nnue_epoch_2.pt"
 _INF = 10_000_000
 _ASPIRATION_DELTA = 30  # tighter than Chaos's 50 â€” the tactician justifies it
 
