@@ -1,0 +1,6 @@
+{
+  "enabledMcpjsonServers": [
+    "chesspoint72-orchestrator"
+  ],
+  "enableAllProjectMcpServers": true
+}

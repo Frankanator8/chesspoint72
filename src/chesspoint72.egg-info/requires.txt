@@ -1,0 +1,5 @@
+pygame>=2.5.0
+python-chess>=1.999
+
+[dev]
+pytest>=8.0.0

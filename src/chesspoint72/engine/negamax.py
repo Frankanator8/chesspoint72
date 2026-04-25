@@ -4,6 +4,7 @@ import time
 from typing import TYPE_CHECKING
 
 from chesspoint72.engine.evaluator import Evaluator
+from chesspoint72.engine.heuristics import HistoryTable, KillerMoveTable
 from chesspoint72.engine.policies import MoveOrderingPolicy, PruningPolicy
 from chesspoint72.engine.search import Search
 from chesspoint72.engine.transposition import TranspositionTable
@@ -49,6 +50,9 @@ class NegamaxSearch(Search):
         # Tracks the number of half-moves made from the root position so that
         # mate scores can be adjusted per-ply (shorter mates score higher).
         self._ply: int = 0
+        # Move-ordering heuristic tables — both reset at the start of each search.
+        self.killer_table: KillerMoveTable = KillerMoveTable()
+        self.history_table: HistoryTable = HistoryTable()
 
     # ---------------------------------------------------------------------- #
     # Public interface (implements Search ABC)
@@ -72,6 +76,8 @@ class NegamaxSearch(Search):
         self._start_time = time.monotonic()
         self.nodes_evaluated = 0
         self._ply = 0
+        self.killer_table.clear()
+        self.history_table.clear()
 
         best_move: Move | None = None
 
@@ -202,6 +208,8 @@ class NegamaxSearch(Search):
                 alpha = score
 
             if alpha >= beta:
+                self.killer_table.update(move, depth)
+                self.update_history(move, depth)
                 break  # Beta cut-off
 
         # ------------------------------------------------------------------ #
@@ -307,6 +315,14 @@ class NegamaxSearch(Search):
                 best_move = move
 
         return best_move
+
+    def update_history(self, move: Move, depth_remaining: int) -> None:
+        """Increment the history score for *move* by depth_remaining ** 2.
+
+        Uses the side-to-move color from the current board state so the caller
+        only needs to supply the move and the remaining depth.
+        """
+        self.history_table.update(self._board.side_to_move, move, depth_remaining)
 
     def _time_exceeded(self) -> bool:
         return time.monotonic() - self._start_time >= self._allotted_time
