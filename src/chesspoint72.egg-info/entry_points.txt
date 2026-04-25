@@ -1,0 +1,3 @@
+[console_scripts]
+chesspoint72 = chesspoint72.main:main
+chesspoint72-engine = chesspoint72.engine.main:main
