@@ -7,6 +7,19 @@ from pathlib import Path
 # Import the match runner from the provided script
 from chesspoint72.benchmark.engine_match import run_match
 
+POSITIONS: list[str | None] = [
+    None,
+    "r6r/p1pkq1p1/2pp1nQp/2b1p3/4PB2/2N4P/PPP2PP1/R4RK1 w - - 0 15",
+    "r2q1rk1/pbpn1ppp/1p1p1b2/1B1P4/8/2N2N2/PPP2PPP/R2QR1K1 w - - 0 13",
+    "r3k2r/pp1qppbp/3p1np1/8/2PQP3/2N1B3/PP3PPP/R3K2R w KQkq - 2 11",
+    "r4rk1/1p4p1/p1p1pn1p/b3Nq2/3Pp2P/1P2P1P1/PB3PK1/1R1Q3R w - - 0 23",
+    "2kr2nr/pppq1pNp/3p2n1/8/4PP2/4bQ2/PPP3PP/RN2K2R w KQ - 0 12",
+    "r1b2rk1/ppp2ppp/2q5/2bn4/8/2P1B3/PP2BPPP/RN1Q1RK1 w - - 0 11",
+    "r2q1rk1/ppp2ppp/2n1b3/3n4/2BB4/2P5/PP3PPP/RN1Q1RK1 w - - 2 11",
+    "r1q2rk1/pp1nbpp1/n3p2p/8/1Pp2B2/P1N1P2P/2B2PP1/R2Q1RK1 w - - 0 16",
+    "r1b2rk1/ppppqppp/8/3nP3/3P4/8/PP2BPPP/RN1QK2R w KQ - 3 11",
+]
+
 def run_tournament(
         engine_dirs: list[str],
         output_file: str,
@@ -48,7 +61,8 @@ def run_tournament(
                         games=games_per_match,
                         movetime_s=movetime_s,
                         seed=seed,
-                        progress=False
+                        progress=False,
+                        positions=POSITIONS,
                     )
 
                     f.write(result.summary(e1.name, e2.name))
@@ -68,7 +82,8 @@ def run_tournament(
                             games=1,
                             movetime_s=movetime_s,
                             seed=seed,
-                            progress=False
+                            progress=False,
+                            positions=POSITIONS,
                         )
 
                         if sd_result.e1_wins > sd_result.e2_wins:
