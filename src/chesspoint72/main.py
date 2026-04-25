@@ -1,83 +1,76 @@
 from __future__ import annotations
-
-import argparse
-
+import argparse, inspect, sys, pathlib
 import chess
-
+import chess.engine
 from chesspoint72.app.controller import GameConfig, GameController
 
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Chesspoint72: Pygame UCI chess renderer")
+    p.add_argument("--engine", type=str, default=None, help="Directory containing run.sh")
+    p.add_argument("--engine-color", choices=["white", "black"], default="black")
+    p.add_argument("--movetime", type=float, default=0.2)
+    p.add_argument("--fen", type=str, default=None)
+    p.add_argument("--square-size", type=int, default=96)
+    p.add_argument("--evaluator", choices=["stub", "hce", "material", "nnue"], default=None)
+    p.add_argument("--depth", type=int, default=4)
+    return p.parse_args(argv)
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Chesspoint72: Pygame UCI chess renderer")
-    parser.add_argument(
-        "--engine",
-        type=str,
-        default=None,
-        help="Path to a UCI engine binary (example: /opt/homebrew/bin/stockfish)",
-    )
-    parser.add_argument(
-        "--engine-color",
-        choices=["white", "black"],
-        default="black",
-        help="Side played by the engine when enabled",
-    )
-    parser.add_argument(
-        "--movetime",
-        type=float,
-        default=0.2,
-        help="Engine think time in seconds per move",
-    )
-    parser.add_argument(
-        "--fen",
-        type=str,
-        default=None,
-        help="Optional initial FEN",
-    )
-    parser.add_argument(
-        "--square-size",
-        type=int,
-        default=96,
-        help="Square size in pixels",
-    )
-    parser.add_argument(
-        "--evaluator",
-        choices=["stub", "hce", "material", "nnue"],
-        default=None,
-        help="Built-in evaluator to use as opponent (mutually exclusive with --engine)",
-    )
-    parser.add_argument(
-        "--depth",
-        type=int,
-        default=4,
-        help="Search depth for the built-in engine (default: 4)",
-    )
-    parser.add_argument(
-        "--hce-modules",
-        type=str,
-        default=None,
-        help=(
-            "Comma-separated HCE modules for --evaluator hce "
-            "(for example: classic,advanced,material,pst,ewpm)."
-        ),
-    )
-    return parser.parse_args()
+def _get_accepted_fields() -> set[str]:
+    """Dynamically determine GameConfig fields for compatibility."""
+    fields = getattr(GameConfig, "__dataclass_fields__", None)
+    if fields: return set(fields)
+    sig = inspect.signature(GameConfig)
+    return {n for n, p in sig.parameters.items() if p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)}
 
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    engine = None
+    engine_cwd = None
 
-def main() -> None:
-    args = parse_args()
-    config = GameConfig(
-        engine_path=args.engine,
-        evaluator=args.evaluator,
-        hce_modules=args.hce_modules,
-        depth=args.depth,
-        engine_color=chess.WHITE if args.engine_color == "white" else chess.BLACK,
-        think_time=args.movetime,
-        square_size=args.square_size,
-        initial_fen=args.fen,
-    )
-    GameController(config).run()
+    if args.engine:
+        # Resolve the directory. If user points to a file, take the parent directory.
+        raw_path = pathlib.Path(args.engine).resolve()
+        engine_cwd = raw_path if raw_path.is_dir() else raw_path.parent
 
+        # Validation to prevent the bash error
+        if not (engine_cwd / "run.sh").exists():
+            print(f"Error: 'run.sh' not found in {engine_cwd}", file=sys.stderr)
+            return 1
+
+        print(f"Booting {engine_cwd.name} (giving PyTorch up to 60s)...")
+        try:
+            # Exact loading logic from engine_match.py
+            engine = chess.engine.SimpleEngine.popen_uci(["bash", "run.sh"], cwd=engine_cwd, timeout=60.0)
+        except Exception as e:
+            print(f"Failed to boot engine: {e}", file=sys.stderr)
+            return 1
+
+    # Configuration mapping
+    req = {
+        "engine": engine,
+        "engine_path": ["bash", "run.sh"] if args.engine else None,
+        "cwd": str(engine_cwd) if engine_cwd else None,
+        "evaluator": args.evaluator,
+        "depth": args.depth,
+        "engine_color": chess.WHITE if args.engine_color == "white" else chess.BLACK,
+        "think_time": args.movetime,
+        "square_size": args.square_size,
+        "initial_fen": args.fen,
+    }
+
+    valid = _get_accepted_fields()
+    config = GameConfig(**{k: v for k, v in req.items() if k in valid})
+
+    try:
+        GameController(config).run()
+    except Exception as e:
+        print(f"Runtime Error: {e}", file=sys.stderr)
+        return 1
+    finally:
+        if engine:
+            engine.quit()
+
+    return 0
 
 if __name__ == "__main__":
-    main()
-
+    sys.exit(main())

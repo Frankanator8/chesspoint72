@@ -1,11 +1,14 @@
 """NNUE-based evaluator backed by a small fully-connected PyTorch model.
 
-Architecture must match training exactly:
-    Linear(768, 256) -> ReLU -> Linear(256, 32) -> ReLU -> Linear(32, 1)
+Architecture is dynamic: 768 -> h1 -> h2 -> 1, where h1 and h2 are read
+from the checkpoint dictionary. Legacy checkpoints (plain state_dict) default
+to h1=256, h2=32 to stay backward-compatible with nnue_weights.pt.
 
 Input encoding: 12 piece-type planes (P,N,B,R,Q,K,p,n,b,r,q,k) of 64 squares,
 flattened to a 768-element float tensor with 1.0 where a piece sits.
 """
+# @capability: evaluator
+# @capability: nnue
 from __future__ import annotations
 
 from pathlib import Path
@@ -37,16 +40,16 @@ def fen_to_tensor(fen: str) -> torch.Tensor:
 
 
 class NnueNetwork(nn.Module):
-    """Architecture must match training: 768 -> 256 -> 32 -> 1."""
+    """Fully-connected NNUE: 768 -> h1 -> h2 -> 1."""
 
-    def __init__(self) -> None:
+    def __init__(self, h1: int = 256, h2: int = 32) -> None:
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(768, 256),
+            nn.Linear(768, h1),
             nn.ReLU(),
-            nn.Linear(256, 32),
+            nn.Linear(h1, h2),
             nn.ReLU(),
-            nn.Linear(32, 1),
+            nn.Linear(h2, 1),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -57,13 +60,25 @@ _DEFAULT_WEIGHTS_PATH = Path(__file__).resolve().parent / "weights" / "nnue_weig
 
 
 class NnueEvaluator(Evaluator):
-    """Evaluator that runs a trained NNUE on the current position."""
+    """Evaluator that runs a trained NNUE on the current position.
+
+    Supports two checkpoint formats:
+    - New format: dict with keys ``state_dict``, ``h1``, ``h2``
+    - Legacy format: raw OrderedDict (plain state_dict); assumes 256x32
+    """
 
     def __init__(self, weights_path: str | Path = _DEFAULT_WEIGHTS_PATH) -> None:
         self._device = torch.device("cpu")
-        self._model = NnueNetwork().to(self._device)
-        state = torch.load(str(weights_path), map_location=self._device)
-        self._model.load_state_dict(state)
+        checkpoint = torch.load(str(weights_path), map_location=self._device)
+        if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+            h1 = int(checkpoint.get("h1", 256))
+            h2 = int(checkpoint.get("h2", 32))
+            state_dict = checkpoint["state_dict"]
+        else:
+            h1, h2 = 256, 32
+            state_dict = checkpoint
+        self._model = NnueNetwork(h1, h2).to(self._device)
+        self._model.load_state_dict(state_dict)
         self._model.eval()
 
     def evaluate_position(self, board: Board) -> int:

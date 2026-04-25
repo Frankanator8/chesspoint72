@@ -5,6 +5,7 @@ helpers for disabling individual techniques. Contains *no* pruning logic —
 the algorithms module reads these values, it does not depend on this
 file's behaviour.
 """
+# @capability: pruning_config
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
