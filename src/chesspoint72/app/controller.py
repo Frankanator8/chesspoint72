@@ -13,6 +13,8 @@ from chesspoint72.ui.renderer import BoardRenderer
 @dataclass
 class GameConfig:
     engine_path: str | None = None
+    evaluator: str | None = None
+    depth: int = 4
     engine_color: bool = chess.BLACK
     think_time: float = 0.2
     square_size: int = 96
@@ -28,7 +30,7 @@ class GameController:
             else GameState()
         )
         self.renderer: BoardRenderer | None = None
-        self.engine: UciEngineClient | None = None
+        self.engine: object | None = None
         self.last_move: chess.Move | None = None
         self.running = True
 
@@ -41,6 +43,14 @@ class GameController:
         if self.config.engine_path:
             self.engine = UciEngineClient(
                 engine_path=self.config.engine_path,
+                think_time=self.config.think_time,
+            )
+            self.engine.start()
+        elif self.config.evaluator is not None:
+            from chesspoint72.app.builtin_engine import BuiltinEngineClient
+            self.engine = BuiltinEngineClient(
+                evaluator=self.config.evaluator,
+                depth=self.config.depth,
                 think_time=self.config.think_time,
             )
             self.engine.start()
