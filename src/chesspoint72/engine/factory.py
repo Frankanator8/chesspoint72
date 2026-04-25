@@ -26,6 +26,7 @@ from chesspoint72.engine.core.policies import MoveOrderingPolicy, PruningPolicy
 from chesspoint72.engine.core.search import Search
 from chesspoint72.engine.core.transposition import TranspositionTable
 from chesspoint72.engine.core.types import Move
+from chesspoint72.engine.pruning import ForwardPruningPolicy, default_pruning_config
 from chesspoint72.engine.search.negamax import NegamaxSearch
 from chesspoint72.engine.uci.controller import UciController
 
@@ -291,11 +292,14 @@ def build_controller(
 ) -> StandardUciController:
     evaluator = build_evaluator(evaluator_name)
     board = PyChessBoard()
+    pruning_config = default_pruning_config()
+    pruning_policy = ForwardPruningPolicy(pruning_config)
     search = NegamaxSearch(
         evaluator,
         TranspositionTable(),
         _StubMoveOrderingPolicy(),
-        _StubPruningPolicy(),
+        pruning_policy,
+        pruning_config,
     )
     return StandardUciController(
         board=board,

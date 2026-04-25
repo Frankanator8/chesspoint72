@@ -43,6 +43,7 @@ class PyChessBoard(Board):
     def __init__(self) -> None:
         super().__init__()
         self._py_board = chess.Board()
+        self._null_stack: list[chess.Move] = []
         self._refresh_state()
 
     # ------------------------------------------------------------------ #
@@ -52,6 +53,7 @@ class PyChessBoard(Board):
     def set_position_from_fen(self, fen_string: str) -> None:
         self._py_board.set_fen(fen_string)
         self.move_history.clear()
+        self._null_stack.clear()
         self._refresh_state()
 
     def get_current_fen(self) -> str:
@@ -103,6 +105,31 @@ class PyChessBoard(Board):
 
     def is_game_over(self) -> bool:
         return self._py_board.is_game_over(claim_draw=True)
+
+    def make_null_move(self) -> None:
+        """Apply a null move (pass the turn). Only call when not in check."""
+        self._py_board.push(chess.Move.null())
+        self._null_stack.append(chess.Move.null())
+        self._refresh_state()
+
+    def unmake_null_move(self) -> None:
+        """Undo the most recent null move."""
+        self._py_board.pop()
+        if self._null_stack:
+            self._null_stack.pop()
+        self._refresh_state()
+
+    def has_only_king_and_pawns(self, side) -> bool:
+        """True iff *side* holds only king and pawns (no minor/major pieces).
+
+        Used by the zugzwang guard in null-move pruning.
+        *side* is a Color enum value (0=WHITE, 1=BLACK).
+        """
+        chess_color = chess.WHITE if int(side) == int(Color.WHITE) else chess.BLACK
+        for piece_type in (chess.KNIGHT, chess.BISHOP, chess.ROOK, chess.QUEEN):
+            if self._py_board.pieces_mask(piece_type, chess_color):
+                return False
+        return True
 
     # ------------------------------------------------------------------ #
     # Internal: keep Board ABC slots in sync with the python-chess board

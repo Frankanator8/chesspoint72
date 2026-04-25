@@ -34,6 +34,15 @@ from chesspoint72.engine.ordering import (
     MoveSorter,
     score_capture,
 )
+from chesspoint72.engine.pruning import (
+    ForwardPruningPolicy,
+    PruningConfig,
+    default_pruning_config,
+    disable_futility,
+    disable_lmr,
+    disable_nmp,
+    disable_razoring,
+)
 from chesspoint72.engine.search.negamax import NegamaxSearch
 from chesspoint72.engine.uci import UciController
 
@@ -42,6 +51,7 @@ __all__ = [
     "CastlingRights",
     "Color",
     "Evaluator",
+    "ForwardPruningPolicy",
     "HistoryTable",
     "KillerMoveTable",
     "MVV_LVA",
@@ -53,11 +63,17 @@ __all__ = [
     "NnueNetwork",
     "NodeType",
     "PieceType",
+    "PruningConfig",
     "PruningPolicy",
     "Search",
     "TranspositionEntry",
     "TranspositionTable",
     "UciController",
+    "default_pruning_config",
+    "disable_futility",
+    "disable_lmr",
+    "disable_nmp",
+    "disable_razoring",
     "fen_to_tensor",
     "score_capture",
     "square_to_algebraic",
