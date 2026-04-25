@@ -124,7 +124,7 @@ class CalixController(UciController):
     its decisions track the live game; for blind mode it never sees either.
     """
 
-    engine_name = "Calix v3 (Sonnet 4.6)"
+    engine_name = "Calix v3 (Local rule-table selector)"
     engine_author = "Jonathan / Calix Project"
 
     def __init__(

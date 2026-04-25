@@ -121,7 +121,11 @@ def scan_modules(root: str | os.PathLike[str] | None = None) -> list[ModuleDescr
     single descriptor whose ``capabilities`` is the union of both.
     """
     if root is None:
-        root = Path(__file__).resolve().parents[2]  # …/src/chesspoint72
+        # Infer the `.../src/chesspoint72` package directory robustly.
+        # (The Calix package lives under `chesspoint72/aiengines/jonathan/v*/`,
+        # so fixed parent indexing is fragile.)
+        here = Path(__file__).resolve()
+        root = next((p for p in here.parents if p.name == "chesspoint72"), here.parents[0])
     root_path = Path(root)
     if not root_path.is_dir():
         return []
