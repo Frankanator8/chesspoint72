@@ -33,7 +33,7 @@ from chesspoint72.engine.search.negamax import NegamaxSearch
 
 from .._common import WEIGHTS_DIR, PassthroughOrdering
 
-_WEIGHTS = WEIGHTS_DIR / "nnue_speedster_final.pt"
+_WEIGHTS = WEIGHTS_DIR / "real_nnue_epoch_2.pt"
 
 
 def bullet_pruning_config() -> PruningConfig:

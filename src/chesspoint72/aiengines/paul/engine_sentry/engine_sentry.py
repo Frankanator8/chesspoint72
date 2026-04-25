@@ -47,8 +47,8 @@ from chesspoint72.engine.search.negamax.negamax import _SearchAborted
 
 from .._common import WEIGHTS_DIR
 
-_TANK_WEIGHTS = WEIGHTS_DIR / "nnue_tank_final.pt"
-_FINISHER_WEIGHTS = WEIGHTS_DIR / "nnue_finisher_final.pt"
+_TANK_WEIGHTS = WEIGHTS_DIR / "real_nnue_epoch_2.pt"
+_FINISHER_WEIGHTS = WEIGHTS_DIR / "real_nnue_epoch_2.pt"
 _INF = 10_000_000
 _MIN_GUARANTEED_DEPTH = 4
 # Below this many non-king pieces the finisher takes over.

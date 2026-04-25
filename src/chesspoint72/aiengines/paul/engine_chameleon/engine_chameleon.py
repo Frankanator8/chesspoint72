@@ -50,8 +50,8 @@ from chesspoint72.engine.search.negamax import NegamaxSearch
 
 from .._common import WEIGHTS_DIR
 
-_TANK_WEIGHTS = WEIGHTS_DIR / "nnue_tank_final.pt"
-_FINISHER_WEIGHTS = WEIGHTS_DIR / "nnue_finisher_final.pt"
+_TANK_WEIGHTS = WEIGHTS_DIR / "real_nnue_epoch_2.pt"
+_FINISHER_WEIGHTS = WEIGHTS_DIR / "real_nnue_epoch_2.pt"
 
 # Below this many non-king pieces we are in endgame territory.
 _ENDGAME_THRESHOLD = 12
