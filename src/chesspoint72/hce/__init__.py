@@ -14,6 +14,16 @@ from .material import (
     material_score,
 )
 from .pst import pst_score
+from .advanced_features import (
+    EWPM, ewpm,
+    SRCM, srcm,
+    IDAM, idam,
+    OTVM, otvm,
+    LMDM, lmdm,
+    LSCM, lscm,
+    CLCM, clcm,
+    DESM, desm,
+)
 
 __all__ = [
     # unified evaluator
@@ -27,4 +37,8 @@ __all__ = [
     "BISHOP_PAIR_BONUS",
     "KNIGHT_PAIR_PENALTY",
     "ROOK_PAIR_PENALTY",
+    # advanced feature classes
+    "EWPM", "SRCM", "IDAM", "OTVM", "LMDM", "LSCM", "CLCM", "DESM",
+    # advanced feature singletons
+    "ewpm", "srcm", "idam", "otvm", "lmdm", "lscm", "clcm", "desm",
 ]

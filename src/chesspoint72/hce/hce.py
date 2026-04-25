@@ -10,6 +10,9 @@ explain(board)  -> dict[str, int]
 from __future__ import annotations
 
 import chess
+from chesspoint72.hce.advanced_features import (
+    ewpm, srcm, idam, otvm, lmdm, lscm, clcm, desm,
+)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 1 — Constants
@@ -352,6 +355,14 @@ _FEATURES: tuple[tuple[str, object], ...] = (
     ("mobility",    mobility_score),
     ("rooks",       rook_bonuses),
     ("bishops",     bishop_pair),
+    ("ewpm",        ewpm),
+    ("srcm",        srcm),
+    ("idam",        idam),
+    ("otvm",        otvm),
+    ("lmdm",        lmdm),
+    ("lscm",        lscm),
+    ("clcm",        clcm),
+    ("desm",        desm),
 )
 
 
@@ -365,6 +376,7 @@ def evaluate(board: chess.Board) -> int:
         total_eg += eg
     score = taper(total_mg, total_eg, phase)
     score = max(-MATE_SCORE + 1, min(MATE_SCORE - 1, score))
+    idam.record(float(score))  # feed White-perspective score into IDAM history
     if board.turn == chess.BLACK:
         score = -score
     return score
