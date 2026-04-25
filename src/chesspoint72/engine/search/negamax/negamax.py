@@ -373,6 +373,11 @@ class NegamaxSearch(Search):
                 best_move = move
 
         self._last_root_score = alpha
+        # Store root in TT so extract_pv_uci can traverse from here.
+        if best_move is not None:
+            self.transposition_table_reference.store_position(
+                zobrist, depth, alpha, NodeType.EXACT, best_move
+            )
         return best_move
 
     def update_history(self, move: Move, depth_remaining: int) -> None:
@@ -392,6 +397,31 @@ class NegamaxSearch(Search):
             "tt_hits":       self.tt_hits,
             "depth_reached": self.depth_reached,
         }
+
+    @property
+    def last_score(self) -> int:
+        """Score from the last completed root search, centipawns (side-to-move POV)."""
+        return self._last_root_score
+
+    def extract_pv_uci(self, max_depth: int = 6) -> list[str]:
+        """Walk the transposition table from the root to extract the PV as UCI strings."""
+        pv: list[str] = []
+        visited: set[int] = set()
+        board = self._board
+        for _ in range(max_depth):
+            zobrist = board.calculate_zobrist_hash()
+            if zobrist in visited:
+                break
+            visited.add(zobrist)
+            entry = self.transposition_table_reference.retrieve_position(zobrist)
+            if entry is None or entry.best_move is None:
+                break
+            move = entry.best_move
+            pv.append(move.to_uci_string())
+            board.make_move(move)
+        for _ in pv:
+            board.unmake_move()
+        return pv
 
     def _time_exceeded(self) -> bool:
         return time.monotonic() - self._start_time >= self._allotted_time

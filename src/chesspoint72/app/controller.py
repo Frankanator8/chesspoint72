@@ -7,7 +7,7 @@ import pygame
 
 from chesspoint72.engine.uci.client import UciEngineClient
 from chesspoint72.models import GameState
-from chesspoint72.ui.renderer import BoardRenderer
+from chesspoint72.ui.renderer import BoardRenderer, SidebarData, SIDEBAR_WIDTH
 
 
 @dataclass
@@ -34,10 +34,12 @@ class GameController:
         self.engine: object | None = None
         self.last_move: chess.Move | None = None
         self.running = True
+        self.sidebar_data = SidebarData()
 
     def run(self) -> None:
         pygame.init()
-        screen = pygame.display.set_mode((self.config.square_size*8, self.config.square_size*8))
+        board_px = self.config.square_size * 8
+        screen = pygame.display.set_mode((board_px + SIDEBAR_WIDTH, board_px))
         pygame.display.set_caption("Chesspoint72")
         self.renderer = BoardRenderer(square_size=self.config.square_size)
 
@@ -70,6 +72,7 @@ class GameController:
                     selected_square=self.game_state.selected_square,
                     legal_targets=legal_targets,
                     last_move=self.last_move,
+                    sidebar_data=self.sidebar_data,
                 )
                 pygame.display.flip()
                 clock.tick(60)
@@ -108,8 +111,22 @@ class GameController:
             return
 
         move = self.build_move(selected, square, self.game_state.board)
+
+        # Capture SAN and context before the board state changes.
+        try:
+            move_san = self.game_state.board.san(move)
+        except Exception:
+            move_san = move.uci()
+        was_white = self.game_state.board.turn == chess.WHITE
+        move_number = self.game_state.board.fullmove_number
+
         if self.game_state.push_move(move):
             self.last_move = move
+            self.sidebar_data = SidebarData(
+                move_san=move_san,
+                move_number=move_number,
+                is_white=was_white,
+            )
             return
 
         if piece and piece.color == self.game_state.board.turn:
@@ -120,12 +137,71 @@ class GameController:
     def _play_engine_move(self) -> None:
         if self.engine is None:
             return
-        move = self.engine.request_best_move(self.game_state.board)
-        if self.game_state.push_move(move):
-            self.last_move = move
+
+        board = self.game_state.board
+        fen_before = board.fen()
+        was_white = board.turn == chess.WHITE
+        move_number = board.fullmove_number
+
+        # Prefer rich move info; fall back to bare move for external UCI engines.
+        info = None
+        if hasattr(self.engine, "request_move_info"):
+            info = self.engine.request_move_info(board)
+            move = info.move
+        else:
+            move = self.engine.request_best_move(board)
+
+        try:
+            move_san = board.san(move)
+        except Exception:
+            move_san = move.uci()
+
+        if not self.game_state.push_move(move):
+            return
+        self.last_move = move
+
+        # Convert internal PV (UCI strings) to SAN using the pre-move board.
+        pv_san: list[str] = []
+        if info and info.pv_uci:
+            b = chess.Board(fen_before)
+            for uci in info.pv_uci:
+                try:
+                    m = chess.Move.from_uci(uci)
+                    pv_san.append(b.san(m))
+                    b.push(m)
+                except Exception:
+                    break
+
+        sidebar = SidebarData(
+            move_san=move_san,
+            move_number=move_number,
+            is_white=was_white,
+            score_cp=info.score_cp if info else None,
+            depth=info.depth if info else 0,
+            nodes=info.nodes if info else 0,
+            pv_san=pv_san,
+            thinking=info is not None,
+        )
+        self.sidebar_data = sidebar
+
+        if info:
+            from chesspoint72.ui.move_explainer import explain_move_async
+
+            def _on_explanation(text: str) -> None:
+                sidebar.explanation = text
+                sidebar.thinking = False
+
+            explain_move_async(
+                fen=fen_before,
+                move_san=move_san,
+                score_cp=info.score_cp,
+                depth=info.depth,
+                pv_san=pv_san,
+                callback=_on_explanation,
+            )
 
     def _is_human_turn(self) -> bool:
-        if not self.config.engine_path:
+        if not self.config.engine_path and self.config.evaluator is None:
             return True
         return self.game_state.board.turn != self.config.engine_color
 
@@ -147,4 +223,3 @@ class GameController:
         if piece and piece.piece_type == chess.PAWN and promotion_rank in (0, 7):
             return chess.Move(from_square, to_square, promotion=chess.QUEEN)
         return chess.Move(from_square, to_square)
-
