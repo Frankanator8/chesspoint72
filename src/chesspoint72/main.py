@@ -51,6 +51,15 @@ def parse_args() -> argparse.Namespace:
         default=4,
         help="Search depth for the built-in engine (default: 4)",
     )
+    parser.add_argument(
+        "--hce-modules",
+        type=str,
+        default=None,
+        help=(
+            "Comma-separated HCE modules for --evaluator hce "
+            "(for example: classic,advanced,material,pst,ewpm)."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -59,6 +68,7 @@ def main() -> None:
     config = GameConfig(
         engine_path=args.engine,
         evaluator=args.evaluator,
+        hce_modules=args.hce_modules,
         depth=args.depth,
         engine_color=chess.WHITE if args.engine_color == "white" else chess.BLACK,
         think_time=args.movetime,

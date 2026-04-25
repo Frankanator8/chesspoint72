@@ -31,6 +31,16 @@ Human vs UCI engine (engine plays black):
 python -m chesspoint72.main --engine /opt/homebrew/bin/stockfish --engine-color black --movetime 0.2
 ```
 
+Human vs built-in HCE engine with selected modules:
+
+```bash
+python -m chesspoint72.main --evaluator hce --hce-modules classic,ewpm,desm --engine-color black --depth 4 --movetime 0.2
+```
+
+`--hce-modules` accepts comma-separated module names and aliases:
+- aliases: `classic`, `advanced`, `all`
+- modules: `material,pst,pawns,king_safety,mobility,rooks,bishops,ewpm,srcm,idam,otvm,lmdm,lscm,clcm,desm`
+
 Engine from custom FEN:
 
 ```bash

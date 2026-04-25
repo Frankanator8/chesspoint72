@@ -14,6 +14,7 @@ from chesspoint72.ui.renderer import BoardRenderer
 class GameConfig:
     engine_path: str | None = None
     evaluator: str | None = None
+    hce_modules: str | None = None
     depth: int = 4
     engine_color: bool = chess.BLACK
     think_time: float = 0.2
@@ -50,6 +51,7 @@ class GameController:
             from chesspoint72.app.builtin_engine import BuiltinEngineClient
             self.engine = BuiltinEngineClient(
                 evaluator=self.config.evaluator,
+                hce_modules=self.config.hce_modules,
                 depth=self.config.depth,
                 think_time=self.config.think_time,
             )

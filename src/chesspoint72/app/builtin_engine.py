@@ -11,10 +11,12 @@ class BuiltinEngineClient:
     def __init__(
         self,
         evaluator: str | None = None,
+        hce_modules: str | None = None,
         depth: int = 4,
         think_time: float = 0.2,
     ) -> None:
         self._evaluator = evaluator
+        self._hce_modules = hce_modules
         self._depth = depth
         self._think_time = think_time
         self._controller = None
@@ -22,6 +24,7 @@ class BuiltinEngineClient:
     def start(self) -> None:
         self._controller = build_controller(
             evaluator_name=self._evaluator,
+            hce_modules=self._hce_modules,
             default_depth=self._depth,
             default_time=self._think_time,
         )

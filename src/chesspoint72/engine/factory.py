@@ -98,15 +98,117 @@ class _MaterialEvaluator(Evaluator):
         return int(material_score(chess.Board(fen)))
 
 
+def _as_chess_board(board: Board | chess.Board) -> chess.Board:
+    if isinstance(board, chess.Board):
+        return board
+    py_board = getattr(board, "py_board", None)
+    if isinstance(py_board, chess.Board):
+        return py_board
+    get_fen = getattr(board, "get_current_fen", None)
+    fen = get_fen() if callable(get_fen) else board.fen()
+    return chess.Board(fen)
+
+
+_HCE_MODULE_GROUPS: dict[str, tuple[str, ...]] = {
+    "classic": (
+        "material", "pst", "pawns", "king_safety", "mobility", "rooks", "bishops",
+    ),
+    "advanced": ("ewpm", "srcm", "idam", "otvm", "lmdm", "lscm", "clcm", "desm"),
+}
+_HCE_MODULE_GROUPS["all"] = _HCE_MODULE_GROUPS["classic"] + _HCE_MODULE_GROUPS["advanced"]
+
+
+def _normalize_hce_modules(raw: str | None, available: set[str]) -> list[str]:
+    if raw is None or not raw.strip():
+        return list(_HCE_MODULE_GROUPS["all"])
+
+    selected: list[str] = []
+    seen: set[str] = set()
+    for token in (t.strip().lower() for t in raw.split(",")):
+        if not token:
+            continue
+        expanded = _HCE_MODULE_GROUPS.get(token, (token,))
+        for name in expanded:
+            if name not in available:
+                valid = ", ".join(sorted(available | set(_HCE_MODULE_GROUPS)))
+                raise ValueError(f"unknown hce module: {name!r}; valid values: {valid}")
+            if name in seen:
+                continue
+            seen.add(name)
+            selected.append(name)
+
+    if not selected:
+        raise ValueError("no hce modules were selected")
+    return selected
+
+
+class _HceEvaluator(Evaluator):
+    """Configurable adapter exposing chesspoint72.hce modules as an Evaluator.
+
+    Returns centipawns from the side-to-move perspective.
+    """
+
+    def __init__(self, modules: str | None = None) -> None:
+        from chesspoint72.hce import hce as hce_impl
+
+        self._feature_fns: dict[str, Callable[[chess.Board], tuple[int, int]]] = {
+            "material": hce_impl.material_balance,
+            "pst": hce_impl.pst_score,
+            "pawns": hce_impl.pawn_structure,
+            "king_safety": hce_impl.king_safety,
+            "mobility": hce_impl.mobility_score,
+            "rooks": hce_impl.rook_bonuses,
+            "bishops": hce_impl.bishop_pair,
+            "ewpm": hce_impl.ewpm,
+            "srcm": hce_impl.srcm,
+            "idam": hce_impl.idam,
+            "otvm": hce_impl.otvm,
+            "lmdm": hce_impl.lmdm,
+            "lscm": hce_impl.lscm,
+            "clcm": hce_impl.clcm,
+            "desm": hce_impl.desm,
+        }
+        self._selected_modules = _normalize_hce_modules(modules, set(self._feature_fns))
+        self._selected_fns = [self._feature_fns[name] for name in self._selected_modules]
+        self._get_game_phase = hce_impl.get_game_phase
+        self._taper = hce_impl.taper
+        self._idam = hce_impl.idam
+        self._mate_limit = 31_999
+
+    def evaluate_position(self, board: Board) -> int:
+        py_board = _as_chess_board(board)
+        phase = self._get_game_phase(py_board)
+        total_mg = total_eg = 0
+        for fn in self._selected_fns:
+            mg, eg = fn(py_board)
+            total_mg += mg
+            total_eg += eg
+
+        score = self._taper(total_mg, total_eg, phase)
+        score = max(-self._mate_limit, min(self._mate_limit, score))
+
+        # IDAM tracks a short score-history trajectory for future calls.
+        if "idam" in self._selected_modules:
+            self._idam.record(float(score))
+
+        if py_board.turn == chess.BLACK:
+            score = -score
+        return int(score)
+
+
+def _build_hce(modules: str | None) -> Evaluator:
+    chosen_modules = modules if modules is not None else os.environ.get("CHESSPOINT72_HCE_MODULES")
+    return _HceEvaluator(chosen_modules)
+
+
 _EVALUATOR_REGISTRY: dict[str, Callable[[], Evaluator]] = {
     "stub":     lambda: _StubEvaluator(),
-    "hce":      lambda: _StubEvaluator(),  # placeholder until full HCE lands
     "material": lambda: _MaterialEvaluator(),
     "nnue":     _build_nnue,
 }
 
 
-def build_evaluator(name: str | None = None) -> Evaluator:
+def build_evaluator(name: str | None = None, hce_modules: str | None = None) -> Evaluator:
     """Select an Evaluator implementation by name.
 
     Falls back to ``CHESSPOINT72_EVALUATOR`` when *name* is None, then to
@@ -114,6 +216,8 @@ def build_evaluator(name: str | None = None) -> Evaluator:
     without rebuilding.
     """
     chosen = (name or os.environ.get("CHESSPOINT72_EVALUATOR", "stub")).strip().lower() or "stub"
+    if chosen == "hce":
+        return _build_hce(hce_modules)
     if chosen not in _EVALUATOR_REGISTRY:
         raise ValueError(f"unknown evaluator: {chosen!r}")
     return _EVALUATOR_REGISTRY[chosen]()
@@ -287,10 +391,11 @@ def build_controller(
     input_stream: Iterable[str] | None = None,
     output_stream: TextIO | None = None,
     evaluator_name: str | None = None,
+    hce_modules: str | None = None,
     default_depth: int = 4,
     default_time: float = 5.0,
 ) -> StandardUciController:
-    evaluator = build_evaluator(evaluator_name)
+    evaluator = build_evaluator(evaluator_name, hce_modules)
     board = PyChessBoard()
     pruning_config = default_pruning_config()
     pruning_policy = ForwardPruningPolicy(pruning_config)
@@ -312,9 +417,13 @@ def build_controller(
     )
 
 
-def _parse_cli(argv: list[str]) -> tuple[str | None, int, float]:
-    """Parse engine CLI flags. Returns (evaluator_name, default_depth, default_time)."""
+def _parse_cli(argv: list[str]) -> tuple[str | None, str | None, int, float]:
+    """Parse engine CLI flags.
+
+    Returns (evaluator_name, hce_modules, default_depth, default_time).
+    """
     evaluator_name: str | None = None
+    hce_modules: str | None = None
     default_depth = 4
     default_time = 5.0
     i = 0
@@ -324,6 +433,10 @@ def _parse_cli(argv: list[str]) -> tuple[str | None, int, float]:
             evaluator_name = argv[i + 1]; i += 2
         elif a.startswith("--evaluator="):
             evaluator_name = a.split("=", 1)[1]; i += 1
+        elif a == "--hce-modules" and i + 1 < len(argv):
+            hce_modules = argv[i + 1]; i += 2
+        elif a.startswith("--hce-modules="):
+            hce_modules = a.split("=", 1)[1]; i += 1
         elif a == "--depth" and i + 1 < len(argv):
             default_depth = max(int(argv[i + 1]), 1); i += 2
         elif a.startswith("--depth="):
@@ -334,13 +447,14 @@ def _parse_cli(argv: list[str]) -> tuple[str | None, int, float]:
             default_time = max(float(a.split("=", 1)[1]), 0.05); i += 1
         else:
             i += 1
-    return evaluator_name, default_depth, default_time
+    return evaluator_name, hce_modules, default_depth, default_time
 
 
 def main() -> int:
-    evaluator_name, default_depth, default_time = _parse_cli(sys.argv[1:])
+    evaluator_name, hce_modules, default_depth, default_time = _parse_cli(sys.argv[1:])
     controller = build_controller(
         evaluator_name=evaluator_name,
+        hce_modules=hce_modules,
         default_depth=default_depth,
         default_time=default_time,
     )
