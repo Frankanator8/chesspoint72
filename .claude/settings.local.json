@@ -14,5 +14,9 @@
       "Bash(git pull *)",
       "Bash(git stash *)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "chesspoint72-orchestrator"
+  ],
+  "enableAllProjectMcpServers": true
 }
