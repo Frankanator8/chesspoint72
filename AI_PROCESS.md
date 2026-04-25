@@ -38,3 +38,16 @@
 **Token efficiency:** two parallel research agents (~32k tokens combined) provided complete Stockfish source-level detail (exact caps, formulas, magic numbers, stage enum values) in one pass. Implementation prompt was self-contained, requiring no follow-up clarification cycles.
 
 **Verification:** 8-category smoke test passing — gravity_update, all three history tables, partial_insertion_sort, pick_best, SEE attack tables (rook/bishop/knight/pawn), see_ge cases (PxP, NxP-recaptured, QxR-recaptured, RxR-even, x-ray-support).
+
+## 2026-04-25 — Engine Component Registries (Evaluator / Move Ordering / Pruning)
+
+**Prompt shape:** inspect whether a central registry already exists for evaluator, pruning policy, and move-ordering policy; if partial/missing, add the missing registries and expose the canonical function(s).
+
+**Approach:**
+- Audited `src/chesspoint72/engine/factory.py`; confirmed `_EVALUATOR_REGISTRY` existed while pruning and move-ordering were hardwired.
+- Added `_MOVE_ORDERING_REGISTRY` and `_PRUNING_POLICY_REGISTRY` with `build_move_ordering_policy(...)` and `build_pruning_policy(...)` builders.
+- Added `list_registered_components()` to provide one introspection point for all three concerns.
+- Kept behavior stable by default (`stub` move ordering, `forward` pruning), and threaded optional CLI args (`--move-ordering`, `--pruning-policy`) through `_parse_cli` and `build_controller`.
+
+**Token efficiency (estimated):** ~1.5k tokens total (audit + patch + targeted verification) to generalize factory wiring across two additional seams with minimal code churn and no search-behavior drift under defaults.
+

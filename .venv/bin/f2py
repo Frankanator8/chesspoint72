@@ -1,4 +1,4 @@
-#!/Users/jonathanz/Desktop/chesspoint72/.venv/bin/python3
+#!/Users/hanyangliu/IdeaProjects/chesspoint72/.venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys
